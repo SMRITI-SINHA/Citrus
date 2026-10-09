@@ -1,6 +1,6 @@
 // One adaptive shell per role. Phone: app bar + bottom tab bar (+ mini cart). ≥768px: quiet side rail + wide canvas.
-import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { useLocation } from 'react-router';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useLocation, useNavigate, useNavigationType } from 'react-router';
 import type { AdminOverview, Me } from '@citrus/shared';
 import { useQuery } from '../lib/query';
 import { useMyOrders, useQueue } from '../state/orders';
@@ -13,6 +13,7 @@ import { session } from '../state/session';
 import { contactOf } from './Contact';
 import { Icon, type IconName } from './Icon';
 import { PLink } from './PLink';
+import { tradeRate } from './Price';
 
 interface NavItem { to: string; icon: IconName; label: string; badge?: number; match: RegExp; /** false: rail only, not in the phone tab bar */ tab?: boolean }
 
@@ -45,6 +46,28 @@ function Brand({ small }: { small?: boolean }) {
   return <div className="brand"><span className="dot">.</span>CITRUS{small ? null : <small>Trade</small>}</div>;
 }
 
+// Back / forward that always work, on every screen. React Router keeps the position in history.state.idx;
+// we remember the furthest position reached so Forward is only offered when there is somewhere to go.
+let furthest = 0;
+function NavArrows() {
+  const nav = useNavigate();
+  const loc = useLocation();
+  const how = useNavigationType();
+  const idx = (typeof history !== 'undefined' && (history.state as { idx?: number } | null)?.idx) || 0;
+  // Work out how far forward history goes during render, so the arrows are right on the first paint after a navigation.
+  const seen = useRef('');
+  if (seen.current !== loc.key) {
+    seen.current = loc.key;
+    furthest = how === 'PUSH' ? idx : Math.max(furthest, idx); // a fresh navigation clears anything ahead
+  }
+  return (
+    <div className="navarrows">
+      <button type="button" className="iconbtn" onClick={() => nav(-1)} disabled={idx <= 0} aria-label="Go back" title="Back"><Icon name="back" /></button>
+      <button type="button" className="iconbtn" onClick={() => nav(1)} disabled={idx >= furthest} aria-label="Go forward" title="Forward"><Icon name="fwd" /></button>
+    </div>
+  );
+}
+
 function Frame({ nav, header, foot, children, after }: { nav: NavItem[]; header: ReactNode; foot: ReactNode; children: ReactNode; after?: ReactNode }) {
   const { pathname } = useLocation();
   const online = useOnline();
@@ -61,7 +84,7 @@ function Frame({ nav, header, foot, children, after }: { nav: NavItem[]; header:
         <div className="foot">{foot}</div>
       </nav>
       <div className="main">
-        <header className="appbar">{header}</header>
+        <header className="appbar"><NavArrows />{header}</header>
         {!online && <div className="netbar" role="status"><Icon name="wifiOff" />You are offline. Everything you change is kept on this phone and sent when you are back online.</div>}
         <main className="content" id="content" tabIndex={-1}>{children}</main>
       </div>
@@ -139,7 +162,7 @@ function MiniCart() {
   const v = useCart();
   const { t } = useT();
   const styles = useStyles(v.lines.map(l => l.styleId));
-  const value = v.lines.reduce((a, l) => a + l.qty * (styles[l.styleId]?.rate ?? 0), 0);
+  const value = v.lines.reduce((a, l) => a + l.qty * tradeRate(styles[l.styleId]), 0);
   const groups = new Set(v.lines.map(l => l.styleId + '|' + l.color)).size;
   return (
     <div className="minicart" role="region" aria-label="Cart">

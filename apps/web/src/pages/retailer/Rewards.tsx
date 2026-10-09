@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { REWARD_TIERS } from '@citrus/shared';
 import { useQuery } from '../../lib/query';
 import type { CataloguePage } from '../../lib/types';
 import { fmtPhone, num } from '../../lib/format';
@@ -12,6 +11,7 @@ import { SecHead, TileSkeletons } from '../../components/Bits';
 import { HelpCard } from '../../components/Contact';
 import { useTheme } from '../../components/Shell';
 import { nextTier } from '../../lib/rewards';
+import { RewardCards } from '../../components/RewardCards';
 
 export default function Rewards() {
   const me = useMe();
@@ -32,15 +32,10 @@ export default function Rewards() {
         <div className="bar" role="progressbar" aria-valuenow={tier.pct} aria-valuemin={0} aria-valuemax={100} aria-label="Progress to next reward"><i style={{ width: `${tier.pct}%` }} /></div>
         <div><b>{t('away', { n: num(tier.away), r: tier.next.name })}</b></div>
       </section>
-      <div className="card tscroll">
-        <table className="tbl">
-          <thead><tr><th>Reward this month</th><th className="r">Points</th><th>Status</th></tr></thead>
-          <tbody>{REWARD_TIERS.map(x => (
-            <tr key={x.at}><td><b>{x.name}</b></td><td className="r num">{num(x.at)}</td>
-              <td>{points >= x.at ? <span className="status s-ok">Unlocked</span> : <span className="muted">{num(x.at - points)} to go</span>}</td></tr>
-          ))}</tbody>
-        </table>
-      </div>
+      <section className="stack" style={{ gap: 12 }}>
+        <SecHead title="Rewards this month" sub="Order CITRUS styles, collect points, claim the prize" />
+        <RewardCards points={points} />
+      </section>
       <div className="note info"><Icon name="spark" size={18} /><div className="grow"><b>How points work</b>Every piece earns points; new and priority styles earn more. You see the points on every product before you order. Rewards and point values are set by CITRUS each month.</div></div>
       <section>
         <SecHead title="Earn faster" sub="Styles with the most points per piece, in stock now" />

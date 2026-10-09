@@ -2,8 +2,8 @@
 // Column count follows the same breakpoints as the .grid CSS (2 / 3 / 4); row height is measured.
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 
-function cols() { const w = window.innerWidth; return w >= 1100 ? 4 : w >= 768 ? 3 : 2; }
-function rowGap() { return window.innerWidth >= 768 ? 32 : 22; }
+function cols() { const w = window.innerWidth; return w >= 1400 ? 4 : w >= 768 ? 3 : 2; }
+function rowGap() { return window.innerWidth >= 768 ? 18 : 12; }
 
 export function VirtualGrid<T>({ items, render, keyOf, threshold = 40 }: { items: T[]; render: (t: T) => ReactNode; keyOf: (t: T) => string; threshold?: number }) {
   const ref = useRef<HTMLDivElement>(null);

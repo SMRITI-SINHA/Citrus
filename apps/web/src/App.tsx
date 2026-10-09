@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { createBrowserRouter, Navigate, Outlet, ScrollRestoration, useLocation, useMatches } from 'react-router';
+import { createBrowserRouter, createHashRouter, Navigate, Outlet, ScrollRestoration, useLocation, useMatches } from 'react-router';
 import type { Role } from '@citrus/shared';
 import { lazyPage, preloadRole, ROLE_HOME } from './routes';
 import { session, useSession } from './state/session';
@@ -80,7 +80,8 @@ function RouteError() {
 
 const R = (roles: Role[]) => ({ roles });
 
-export const router = createBrowserRouter([
+// The hosted demo is served from a static link, so it routes on the URL hash.
+export const router = (import.meta.env.VITE_DEMO ? createHashRouter : createBrowserRouter)([
   {
     element: <Root />,
     HydrateFallback: Boot,

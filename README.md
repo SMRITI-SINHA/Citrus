@@ -17,6 +17,13 @@ npm run dev -w apps/web         # PWA on http://localhost:5173
 ```
 `SEED_SCALE=demo scripts/stack.sh --fresh` seeds only the 12 curated styles and 7 named stores (seconds instead of minutes).
 
+### Without a database (UI only)
+```bash
+npm run mock -w apps/web                 # sample-data API on :4300
+VITE_MOCK=1 npm run dev -w apps/web      # PWA on http://localhost:5173, OTP 482916
+```
+Hosted demo build (the same mock runs inside the page, no server needed): `VITE_DEMO=1 VITE_PHOTO_BASE=photos/ npx vite build` in `apps/web`, output in `apps/web/dist-demo`.
+
 ### Sign in (the OTP code is filled in automatically in dev)
 | Panel | How |
 |---|---|

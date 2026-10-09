@@ -64,7 +64,10 @@ export interface StyleCard {
   /** availability per colour per size, from the CITRUS Trade availability layer */
   stock: Record<string, Record<string, number>>;
   reason?: string; // recommendation reason
+  /** a running CITRUS scheme on this style: the trade rate after the scheme, and how it is described to retailers */
+  offer?: Offer;
 }
+export interface Offer { rate: number; pct: number; label: string; ends?: string }
 export interface Availability { styleId: string; color: string; size: string; available: number; updatedAt: string }
 
 export interface CartLine { styleId: string; color: string; size: string; qty: number }
@@ -101,7 +104,10 @@ export interface RetailerChangeDecision { action: 'accept' | 'decline' }
 
 export interface Page<T> { items: T[]; nextCursor?: string }
 export interface Facet { value: string; n: number }
-export interface CataloguePage extends Page<StyleCard> { total: number; facets: { fit: Facet[]; pattern: Facet[]; color: Facet[] } }
+export interface CataloguePage extends Page<StyleCard> {
+  total: number;
+  facets: { fit: Facet[]; pattern: Facet[]; color: Facet[]; size?: Facet[]; fabric?: Facet[]; price?: Facet[]; discount?: Facet[]; offer?: Facet[] };
+}
 
 export interface PastOrderCard {
   orderId: string; number: string; placedAt: string; status: OrderStatus; totalQty: number; totalValue: number;
@@ -152,7 +158,7 @@ export type LiveEvent =
 
 export const REWARD_TIERS = [
   { at: 1000, name: 'Air fryer' }, { at: 4000, name: '₹4,000 credit note' },
-  { at: 5000, name: 'Bangkok trip for two' }, { at: 10000, name: 'iPhone' },
+  { at: 5000, name: 'Bangkok trip for two' }, { at: 10000, name: 'iPhone 18' },
 ];
 
 /** Best-practice defaults, subject to CITRUS confirmation. Kept in one place so they can be changed. */
@@ -205,7 +211,27 @@ export function splitByRatio(total: number, ratio: number[], caps: number[]): nu
  * Ginesys behaviour is listed here, shown to admins, and must be confirmed before production.
  * kind: 'business' = best-practice default (configurable); 'erp' = adapter contract pending WFX/Ginesys docs.
  */
+// ---------- Schemes (offers) ----------
+// ASSUMPTION 'schemes': CITRUS runs trade schemes as a % off the trade rate for a period. The real source (Ginesys
+// promotion / price list, or a CITRUS Trade schemes screen) is not confirmed; until then this deterministic sample is used.
+const SCHEME_FIXED: Record<string, number> = { 'CS-1104': 10, 'CS-1105': 12, 'CT-2102': 8, 'CK-3101': 15, 'CK-3102': 10, 'CT-2104': 5 };
+const SCHEME_NAMES = ['Festive scheme', 'Diwali stock-up', 'Season opener', 'Clearance on NOS'];
+function hash32(s: string) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
+export function offerFor(styleId: string, rate: number): Offer | undefined {
+  const h = hash32(styleId);
+  const pct = SCHEME_FIXED[styleId] ?? (/^(CS-110|CT-210|CK-310)\d$/.test(styleId) ? 0 : h % 100 < 22 ? [5, 8, 10, 12, 15][h % 5] : 0);
+  if (!pct) return undefined;
+  return { rate: Math.round(rate * (1 - pct / 100)), pct, label: SCHEME_NAMES[h % SCHEME_NAMES.length], ends: '2026-10-31' };
+}
+/** Trade-rate bands used by the price filter (applied to the rate after any scheme). */
+export const PRICE_BANDS: { key: string; label: string; min: number; max: number }[] = [
+  { key: 'u500', label: 'Under ₹500', min: 0, max: 499 }, { key: '500-699', label: '₹500 – ₹699', min: 500, max: 699 },
+  { key: '700-899', label: '₹700 – ₹899', min: 700, max: 899 }, { key: '900+', label: '₹900 and above', min: 900, max: Infinity },
+];
+export const DISCOUNT_STEPS = [5, 10, 15];
+
 export const ASSUMPTIONS: { id: string; kind: 'business' | 'erp'; title: string; current: string; owner: 'Hitesh' | 'Jatin' }[] = [
+  { id: 'schemes', kind: 'business', title: 'Schemes and offers', current: 'Shown as % off the trade rate until a date; sample schemes until CITRUS confirms the source', owner: 'Hitesh' },
   { id: 'moq', kind: 'business', title: 'Minimum order', current: 'No minimum order value or quantity', owner: 'Hitesh' },
   { id: 'sla', kind: 'business', title: 'Distributor approval time', current: 'Flag to CITRUS after 4 hours without a decision', owner: 'Hitesh' },
   { id: 'changes', kind: 'business', title: 'Retailer ignores suggested changes', current: 'Reminder after 24 hours, then escalate to CITRUS; never auto-cancel', owner: 'Hitesh' },

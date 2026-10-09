@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { POLICY, REWARD_TIERS } from '@citrus/shared';
+import { POLICY } from '@citrus/shared';
 import { useQuery } from '../../lib/query';
 import { nextTier } from '../../lib/rewards';
 import { useT } from '../../lib/i18n';
@@ -10,7 +10,9 @@ import { lookPart, pastId } from '../../lib/types';
 import { useMe } from '../../state/session';
 import { seedStyles, spec } from '../../state/catalogue';
 import { isOpen, useMyOrders } from '../../state/orders';
-import { BrandArt, Garment, Outfit } from '../../components/Garment';
+import { BrandArt, Garment, linePhoto } from '../../components/Garment';
+import { RewardCards } from '../../components/RewardCards';
+import type { CataloguePage } from '../../lib/types';
 import { Icon } from '../../components/Icon';
 import { PLink } from '../../components/PLink';
 import { ProductTile, productHref } from '../../components/ProductTile';
@@ -26,6 +28,9 @@ export default function Home() {
   const nav = useNavigate();
   const { data, error, refresh } = useQuery<HomeData>('/api/home', { staleMs: 30_000 });
   const { data: orders } = useMyOrders();
+  const { data: deals } = useQuery<CataloguePage>('/api/catalogue?offer=1&inStock=1&sort=offer&limit=10', { staleMs: 120_000 });
+  useEffect(() => { seedStyles(deals?.items); }, [deals]);
+  const best = deals?.items.reduce((a, s) => Math.max(a, s.offer?.pct ?? 0), 0) ?? 0;
   const [reorder, setReorder] = useState<PastOrderCard | null>(null);
   useEffect(() => { if (data) { seedStyles(data.recommended); seedStyles(data.newStyles); } }, [data]);
 
@@ -82,6 +87,21 @@ export default function Home() {
         </div>
       </section>
 
+      {deals && deals.items.length > 0 && (
+        <section className="stack" style={{ gap: 12 }}>
+          <PLink to="/catalogue?offer=1&sort=offer" className="dealban">
+            <span className="dealban-copy">
+              <span className="eyebrow">Scheme offers · till 31 Oct</span>
+              <b>Up to {best}% off the trade rate</b>
+              <span>On {num(deals.total ?? deals.items.length)} styles this month. The green price is what you pay.</span>
+              <span className="btn light sm">See all offers <Icon name="fwd" size={14} /></span>
+            </span>
+            <span className="dealban-art" aria-hidden="true"><img src={linePhoto('casual')} alt="" loading="lazy" /></span>
+          </PLink>
+          <div className="hscroll">{deals.items.map(s => <ProductTile key={s.id} style={s} />)}</div>
+        </section>
+      )}
+
       <section>
         <SecHead title={t('recommended')} sub={t('recSub')} action={<PLink to="/catalogue" className="linkbtn" preloadVisible>{t('seeAll')}</PLink>} />
         <div style={{ marginTop: 12 }}>
@@ -106,9 +126,11 @@ export default function Home() {
               const top = lookPart(l.top), bot = lookPart(l.bottom);
               if (!top.style || !bot.style) return null;
               return (
-                <PLink key={i} to={productHref(bot.style.id, bot.color)} className="ptile" data={`/api/styles/${bot.style.id}`}>
-                  <div className="img" style={{ aspectRatio: '3/4' }}><Outfit top={spec(top.style, top.color)} bottom={spec(bot.style, bot.color)} /></div>
-                  <div><div className="nm">{bot.style.name}, {bot.color}</div><div className="meta">Goes with {top.style.name}, {top.color}</div>{l.reason && <div className="why">{l.reason}</div>}</div>
+                <PLink key={i} to={productHref(bot.style.id, bot.color)} className="lookcard" data={`/api/styles/${bot.style.id}`}>
+                  <span className="lookimgs"><span className="pimg"><Garment spec={spec(top.style, top.color)} /></span><span className="plus" aria-hidden="true">+</span><span className="pimg"><Garment spec={spec(bot.style, bot.color)} /></span></span>
+                  <span className="lookcap"><b>{top.style.name}</b><span className="muted">{top.color}</span></span>
+                  <span className="lookcap"><b>{bot.style.name}</b><span className="muted">{bot.color}</span></span>
+                  <span className="pwhy">{l.reason ?? ''}</span>
                 </PLink>
               );
             })}
@@ -123,7 +145,7 @@ export default function Home() {
         </div>
         <div className="bar" role="progressbar" aria-valuenow={tier.pct} aria-valuemin={0} aria-valuemax={100} aria-label="Progress to next reward"><i style={{ width: `${tier.pct}%` }} /></div>
         <div style={{ fontSize: 14 }}><b>{t('away', { n: num(tier.away), r: tier.next.name })}</b>{tier.prev ? ` · Unlocked: ${tier.prev.name}` : ''}</div>
-        <div className="ticker" aria-hidden="true"><span>This month: {REWARD_TIERS.map(r => `${num(r.at)} pts = ${r.name}`).join('   ·   ')}   ·   New styles earn up to 40 pts per piece</span></div>
+        <RewardCards points={points} compact />
       </section>
 
       <ReorderSheet card={reorder} onClose={() => setReorder(null)} />

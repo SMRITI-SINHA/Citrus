@@ -3,19 +3,20 @@ import { useNavigate, useParams, useSearchParams } from 'react-router';
 import type { StyleCard } from '@citrus/shared';
 import { useQuery } from '../../lib/query';
 import type { CataloguePage } from '../../lib/types';
-import { inr, num } from '../../lib/format';
+import { dmy, inr, num } from '../../lib/format';
 import { useT } from '../../lib/i18n';
 import { cart } from '../../state/cart';
 import { colorTotal, seedStyles, sizesOf, spec, useStyle } from '../../state/catalogue';
 import { draft } from '../../state/ui';
 import { toast } from '../../state/toast';
-import { Garment, isBottom, isDark, Outfit } from '../../components/Garment';
+import { Garment, isBottom, isDark } from '../../components/Garment';
 import { Icon } from '../../components/Icon';
 import { PLink } from '../../components/PLink';
 import { ColorPicker, productHref } from '../../components/ProductTile';
 import { QtyGrid, useDraftSource } from '../../components/QtyGrid';
 import { ErrorNote } from '../../components/Bits';
 import { HelpCard } from '../../components/Contact';
+import { OfferTag, Price, tradeRate } from '../../components/Price';
 
 export default function Product() {
   const { id = '' } = useParams();
@@ -45,7 +46,6 @@ function ProductView({ style }: { style: StyleCard }) {
   const src = useDraftSource(style, color);
   const zs = sizesOf(style);
   const pcs = zs.reduce((a, z) => a + src.get(z), 0);
-  const margin = style.mrp ? Math.round((1 - style.rate / style.mrp) * 100) : 0;
 
   function add() {
     const before = cart.get();
@@ -65,16 +65,21 @@ function ProductView({ style }: { style: StyleCard }) {
         <div className="gallery">
           <div className="hero">
             <Garment spec={spec(style, color)} />
-            <div className="tags">{style.isNew && <span className="tagx new">NEW</span>}<span className="tagx pts">+{style.points} pts / pc</span></div>
+            <div className="tags">{style.isNew && <span className="tagx new">NEW</span>}{style.offer && <OfferTag style={style} />}<span className="tagx pts">+{style.points} pts / pc</span></div>
           </div>
+            <div className="facts show-lg">
+            <div><span className="muted">Fit</span><b>{style.fit}</b></div><div><span className="muted">Fabric</span><b>{style.fabric}</b></div>
+            <div><span className="muted">Pattern</span><b>{style.pattern}</b></div><div><span className="muted">Points</span><b>+{style.points} per piece</b></div>
+            </div>
         </div>
         <div className="stack-lg" style={{ gap: 18 }}>
           <div>
             <div className="eyebrow">{style.category} · NOS · <span className="mono">{style.id}</span></div>
             <h1 style={{ fontSize: 'clamp(24px,2.6vw,32px)', marginTop: 6 }}>{style.name}</h1>
-            <div style={{ marginTop: 6, fontSize: 18 }} className="num"><b>{inr(style.rate)}</b> <span className="muted" style={{ fontSize: 14 }}>per piece · MRP {inr(style.mrp)}{margin > 0 ? ` · ${margin}% margin` : ''}</span></div>
+            <div style={{ marginTop: 8 }}><Price style={style} size="lg" perPiece /></div>
+            {style.offer && <div className="dealnote"><b>{style.offer.label}</b> · {style.offer.pct}% off the trade rate{style.offer.ends ? ` until ${dmy(style.offer.ends)}` : ''}</div>}
           </div>
-          {style.reason && <div className="why"><Icon name="spark" size={14} /> {style.reason}</div>}
+          {style.reason && <div className="why"><span><Icon name="spark" size={14} /> {style.reason}</span></div>}
           <div className="fgroup"><div className="eyebrow">Colour · {color}</div><ColorPicker style={style} value={color} onChange={c => setSp({ color: c }, { replace: true })} /></div>
           <div className="fgroup">
             <div className="eyebrow">Quantities · live stock per size</div>
@@ -82,24 +87,23 @@ function ProductView({ style }: { style: StyleCard }) {
             <div className="muted xs">Stock is live from the CITRUS warehouse. Adding to cart does not hold stock; we check again when you place the order.</div>
           </div>
           <div className="stickybuy">
-            <div className="t" aria-live="polite"><b className="num">{num(pcs)} pcs · {inr(pcs * style.rate)}</b><span className="muted">+{num(pcs * style.points)} points</span></div>
+            <div className="t" aria-live="polite"><b className="num">{num(pcs)} pcs · {inr(pcs * tradeRate(style))}</b><span className="muted">+{num(pcs * style.points)} points</span></div>
             <button type="button" className="btn" data-gadd disabled={!pcs} onClick={add}>{t('add')}</button>
           </div>
-          <Pairs style={style} color={color} />
-          <div className="facts">
+          <div className="facts hide-lg">
             <div><span className="muted">Fit</span><b>{style.fit}</b></div><div><span className="muted">Fabric</span><b>{style.fabric}</b></div>
             <div><span className="muted">Pattern</span><b>{style.pattern}</b></div><div><span className="muted">Points</span><b>+{style.points} per piece</b></div>
           </div>
-          <HelpCard context={`About ${style.name} (${style.id}), ${color}`} line="Not sure about sizes or quantity? Ask, like you always do." />
+          <HelpCard context={`About ${style.name} (${style.id}), ${color}`} line="Not sure about sizes or quantity? Call or WhatsApp your rep." />
         </div>
       </div>
+      <Pairs style={style} color={color} />
     </>
   );
 }
 
 /** "Want the trouser that goes with this?" Pairs from the other half of the wardrobe, with a colour that works. */
 function Pairs({ style, color }: { style: StyleCard; color: string }) {
-  const { t } = useT();
   const bottom = isBottom(style.kind);
   // Pairs come from the API (bought-together first, then a colour that works); the catalogue is only a fallback.
   const { data: api, error } = useQuery<StyleCard[]>(`/api/styles/${encodeURIComponent(style.id)}/pairs?color=${encodeURIComponent(color)}`, { staleMs: 300_000 });
@@ -116,16 +120,19 @@ function Pairs({ style, color }: { style: StyleCard; color: string }) {
   });
   if (!pairs.length) return null;
   return (
-    <div style={{ marginTop: 16 }}>
-      <div className="eyebrow">{bottom ? 'Shirts that go with it' : t('lookSub')}</div>
-      <div className="look">
+    <section className="pairs">
+      <div className="pairs-h"><b>Complete the look</b><span className="muted">{bottom ? 'Shirts that go with this trouser' : 'Trousers that go with this shirt'}</span></div>
+      <div className="pairs-row">
         {pairs.map(({ p, c, why }) => (
-          <PLink key={p.id} to={productHref(p.id, c)} style={{ flex: '0 0 auto', width: 96, textAlign: 'left', fontSize: 11.5, display: 'flex', flexDirection: 'column', gap: 6, color: 'inherit', textDecoration: 'none' }}>
-            <span className="lk">{bottom ? <Outfit top={spec(p, c)} bottom={spec(style, color)} /> : <Outfit top={spec(style, color)} bottom={spec(p, c)} />}</span>
-            <span><b>{p.name}</b><br /><span className="muted">{c}</span>{why && <><br /><span className="muted xs">{why}</span></>}</span>
+          <PLink key={p.id} to={productHref(p.id, c)} className="pcard" data={`/api/styles/${p.id}`}>
+            <span className="pimg"><Garment spec={spec(p, c)} />{p.offer && <span className="pt-tag"><OfferTag style={p} /></span>}</span>
+            <span className="pnm">{p.name}</span>
+            <span className="pmeta muted">{c}</span>
+            <Price style={p} />
+            <span className="pwhy">{why ?? ''}</span>
           </PLink>
         ))}
       </div>
-    </div>
+    </section>
   );
 }

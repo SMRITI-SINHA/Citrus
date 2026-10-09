@@ -1,20 +1,24 @@
 // Dev-only stand-in for apps/api so the PWA can be exercised (and screenshotted) before the real API runs.
 // Implements the docs/API.md contract over the shared seed data. Not used in production.
 // Run: npm run mock -w apps/web   (port 4300), then VITE_MOCK=1 npm run dev -w apps/web
-import http from 'node:http';
-import { randomUUID } from 'node:crypto';
+// The same handler also runs inside the browser for the hosted demo (src/demo/inbrowser.ts), so it uses no Node-only modules.
 import type { Cart, CartLine, Category, Me, Order, OrderLine, OrderStatus, StyleCard } from '@citrus/shared';
-import { ASSUMPTIONS, DEFAULT_RATIO, REWARD_TIERS, SIZES } from '@citrus/shared';
+import { ASSUMPTIONS, DEFAULT_RATIO, DISCOUNT_STEPS, offerFor, PRICE_BANDS, REWARD_TIERS, SIZES } from '@citrus/shared';
 import { COLORS, DISTRIBUTORS, PAST_ORDERS, RECOMMENDATIONS, RETAILERS, STYLES, seedStock } from '@citrus/shared/src/seed.ts';
 
-const PORT = Number(process.env.MOCK_PORT ?? 4300); // 4000 = real API, 4100 = mock Ginesys
+const env: Record<string, string | undefined> = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
+const randomUUID = () => globalThis.crypto.randomUUID();
+/** The slice of Node's IncomingMessage / ServerResponse the handler uses, so the browser demo can supply its own. */
+export interface MockReq { url?: string; method?: string; headers: Record<string, string | undefined>; on(ev: string, f: (chunk?: any) => void): void }
+export interface MockRes { writeHead(status: number, headers: Record<string, string>): void; write(chunk: string): void; end(body?: string): void }
+export const MOCK_INFO = () => ({ retailer: RET.phone, invite: RET.invite, distributor: DIST.phone, admin: '9845000001', code: '482916' });
 const stock = seedStock();
 const byId = new Map(STYLES.map(s => [s.id, s]));
 const resolved = new Set<string>();
 const RET = RETAILERS[0];
 const DIST = DISTRIBUTORS.find(d => d.id === RET.distributor)!;
 const users: Record<string, Me> = {
-  [RET.phone]: { userId: 'u-r1', role: 'retailer', name: `${RET.owner} K.`, phone: RET.phone, points: 780, consentRequired: process.env.CONSENT === '1', supportPhone: '9845012345', repName: 'Imran Khan',
+  [RET.phone]: { userId: 'u-r1', role: 'retailer', name: `${RET.owner} K.`, phone: RET.phone, points: 780, consentRequired: env.CONSENT === '1', supportPhone: '9845012345', repName: 'Imran Khan',
     retailer: { id: 'r1', code: RET.code, store: RET.store, city: RET.city, state: RET.state, gstin: RET.gstin, distributor: { id: DIST.id, name: DIST.name, city: DIST.city } } },
   [DIST.phone]: { userId: 'u-d1', role: 'distributor', name: DIST.contact, phone: DIST.phone, distributor: { id: DIST.id, name: DIST.name, city: DIST.city, state: DIST.state } },
   '9845000001': { userId: 'u-a1', role: 'admin', name: 'Hitesh Jain', phone: '9845000001' },
@@ -28,7 +32,7 @@ const card = (id: string, reason?: string): StyleCard => {
   const st: Record<string, Record<string, number>> = {};
   for (const c of s.colors) st[c] = Object.fromEntries(SIZES[s.category].map(z => [z, stock[`${s.id}|${c}|${z}`] ?? 0]));
   return { id: s.id, name: s.name, category: s.category, fit: s.fit, fabric: s.fabric, pattern: s.pattern, kind: s.kind, rate: s.rate, mrp: s.mrp, points: s.points, isNew: !!s.isNew,
-    colors: s.colors.map(c => ({ name: c, hex: COLORS[c] ?? '#888', total: Object.values(st[c]).reduce((a, b) => a + b, 0) })), stock: st, reason };
+    colors: s.colors.map(c => ({ name: c, hex: COLORS[c] ?? '#888', total: Object.values(st[c]).reduce((a, b) => a + b, 0) })), stock: st, reason, offer: offerFor(s.id, s.rate) };
 };
 
 let cart: Cart = { lines: [], note: '', po: '', updatedAt: new Date().toISOString(), version: 1 };
@@ -50,32 +54,32 @@ const queue: Order[] = [
   mkOrder('CT-10478', mkLines([['CK-3101', 'Navy', 1]]), 'review', 40, 'Style Point', 'Kottayam', 'r4'),
 ];
 queue[0].note = 'Need before Onam sale';
-const sseClients = new Set<http.ServerResponse>();
+const sseClients = new Set<MockRes>();
 const push = (ev: unknown) => { for (const c of sseClients) c.write(`data: ${JSON.stringify(ev)}\n\n`); };
-let failNext = process.env.STOCK_CONFLICT === '1';
+let failNext = env.STOCK_CONFLICT === '1';
 
-function send(res: http.ServerResponse, status: number, body?: unknown, headers: Record<string, string> = {}) {
+function send(res: MockRes, status: number, body?: unknown, headers: Record<string, string> = {}) {
   res.writeHead(status, { 'content-type': 'application/json', 'x-request-id': randomUUID(), ...headers });
   res.end(body === undefined ? '' : JSON.stringify(body));
 }
-const err = (res: http.ServerResponse, status: number, code: string, message: string, extra: object = {}) => send(res, status, { code, message, ...extra });
-const cookie = (req: http.IncomingMessage) => Object.fromEntries((req.headers.cookie ?? '').split(';').map(c => c.trim().split('=')).filter(x => x[0]));
-const who = (req: http.IncomingMessage, url: URL) => {
+const err = (res: MockRes, status: number, code: string, message: string, extra: object = {}) => send(res, status, { code, message, ...extra });
+const cookie = (req: MockReq) => Object.fromEntries((req.headers.cookie ?? '').split(';').map(c => c.trim().split('=')).filter(x => x[0]));
+const who = (req: MockReq, url: URL) => {
   const t = (req.headers.authorization ?? '').replace('Bearer ', '') || url.searchParams.get('token') || '';
   const p = tokens.get(t); return p ? users[p] : undefined;
 };
-const body = (req: http.IncomingMessage) => new Promise<any>(r => { let d = ''; req.on('data', c => (d += c)); req.on('end', () => { try { r(JSON.parse(d || '{}')); } catch { r({}); } }); });
-const session = (phone: string, res: http.ServerResponse) => {
+const body = (req: MockReq) => new Promise<any>(r => { let d = ''; req.on('data', c => (d += c)); req.on('end', () => { try { r(JSON.parse(d || '{}')); } catch { r({}); } }); });
+const session = (phone: string, _res: MockRes) => {
   const at = randomUUID(), rt = randomUUID(); tokens.set(at, phone); sessions.set(rt, phone);
   return { s: { accessToken: at, expiresIn: 900, me: users[phone] }, h: { 'set-cookie': `ct_refresh=${rt}; HttpOnly; Path=/api/auth; SameSite=Lax` } };
 };
 const avail = (l: { styleId: string; color: string; size: string }) => stock[`${l.styleId}|${l.color}|${l.size}`] ?? 0;
 const bump = () => { cart = { ...cart, updatedAt: new Date().toISOString(), version: cart.version + 1 }; };
 
-http.createServer(async (req, res) => {
+export async function handle(req: MockReq, res: MockRes) {
   const url = new URL(req.url!, 'http://x');
   const p = url.pathname, m = req.method!;
-  await new Promise(r => setTimeout(r, Number(process.env.LATENCY ?? 120)));
+  await new Promise(r => setTimeout(r, Number(env.LATENCY ?? 120)));
   try {
     if (p === '/api/auth/otp' && m === 'POST') {
       const b = await body(req); const phone = String(b.phone ?? '').replace(/\D/g, '').slice(-10);
@@ -129,18 +133,33 @@ http.createServer(async (req, res) => {
       let list = STYLES.filter(s => (q.length ? q.every(t => `${s.id} ${s.name} ${s.category} ${s.fit} ${s.pattern} ${s.fabric} ${s.kind} ${s.colors.join(' ')}`.toLowerCase().includes(t.replace('trouser', 'trouser'))) : !cat || s.category === cat));
       if (url.searchParams.get('isNew')) list = list.filter(s => s.isNew);
       const base = list;
-      const fits = csv('fit'), pats = csv('pattern'), cols = csv('color');
+      const fits = csv('fit'), pats = csv('pattern'), cols = csv('color'), fabs = csv('fabric'), bands = csv('price'), sizes = csv('size');
+      const minPct = Number(url.searchParams.get('discount')) || 0;
+      type S = typeof STYLES[number];
+      const eff = (s: S) => offerFor(s.id, s.rate)?.rate ?? s.rate, pct = (s: S) => offerFor(s.id, s.rate)?.pct ?? 0;
+      const bandOf = (s: S) => PRICE_BANDS.find(b => eff(s) >= b.min && eff(s) <= b.max)?.key ?? '';
+      const inSizes = (s: S) => SIZES[s.category].filter(z => s.colors.some(c => (stock[`${s.id}|${c}|${z}`] ?? 0) > 0));
       if (fits.length) list = list.filter(s => fits.includes(s.fit));
       if (pats.length) list = list.filter(s => pats.includes(s.pattern));
       if (cols.length) list = list.filter(s => s.colors.some(c => cols.includes(c)));
+      if (fabs.length) list = list.filter(s => fabs.includes(s.fabric));
+      if (bands.length) list = list.filter(s => bands.includes(bandOf(s)));
+      if (sizes.length) list = list.filter(s => inSizes(s).some(z => sizes.includes(z)));
+      if (url.searchParams.get('offer')) list = list.filter(s => pct(s) > 0);
+      if (minPct) list = list.filter(s => pct(s) >= minPct);
       const tot = (id: string) => byId.get(id)!.colors.reduce((a, c) => a + SIZES[byId.get(id)!.category].reduce((x, z) => x + (stock[`${id}|${c}|${z}`] ?? 0), 0), 0);
       if (url.searchParams.get('inStock')) list = list.filter(s => tot(s.id) > 0);
       const sort = url.searchParams.get('sort') ?? 'best';
-      list = [...list].sort(sort === 'avail' ? (a, b) => tot(b.id) - tot(a.id) : sort === 'new' ? (a, b) => Number(!!b.isNew) - Number(!!a.isNew) : sort === 'points' ? (a, b) => b.points - a.points : () => 0);
-      const facet = (f: (s: typeof STYLES[number]) => string[]) => { const m = new Map<string, number>(); for (const s of base) for (const v of new Set(f(s))) m.set(v, (m.get(v) ?? 0) + 1); return [...m].map(([value, n]) => ({ value, n })).sort((a, b) => b.n - a.n); };
+      list = [...list].sort(sort === 'avail' ? (a, b) => tot(b.id) - tot(a.id) : sort === 'new' ? (a, b) => Number(!!b.isNew) - Number(!!a.isNew) : sort === 'points' ? (a, b) => b.points - a.points
+        : sort === 'offer' ? (a, b) => pct(b) - pct(a) : sort === 'price' ? (a, b) => eff(a) - eff(b) : () => 0);
+      const facet = (f: (s: S) => string[], from: S[] = base) => { const m = new Map<string, number>(); for (const s of from) for (const v of new Set(f(s))) m.set(v, (m.get(v) ?? 0) + 1); return [...m].map(([value, n]) => ({ value, n })).sort((a, b) => b.n - a.n); };
+      const sizeOrder = (cat ? SIZES[cat as Category] : [...SIZES.Shirts, ...SIZES.Trousers]) ?? [];
       const limit = Math.min(Number(url.searchParams.get('limit') ?? 24), 60), start = Number(url.searchParams.get('cursor') ?? 0);
       return send(res, 200, { items: list.slice(start, start + limit).map(s => card(s.id)), nextCursor: start + limit < list.length ? String(start + limit) : undefined, total: list.length,
-        facets: { fit: facet(s => [s.fit]), pattern: facet(s => [s.pattern]), color: facet(s => s.colors) } });
+        facets: { fit: facet(s => [s.fit]), pattern: facet(s => [s.pattern]), color: facet(s => s.colors), fabric: facet(s => [s.fabric]),
+          size: facet(inSizes, list).sort((a, b) => sizeOrder.indexOf(a.value) - sizeOrder.indexOf(b.value)),
+          price: facet(s => [bandOf(s)], list).sort((a, b) => PRICE_BANDS.findIndex(x => x.key === a.value) - PRICE_BANDS.findIndex(x => x.key === b.value)),
+          discount: DISCOUNT_STEPS.map(d => ({ value: String(d), n: list.filter(s => pct(s) >= d).length })), offer: [{ value: '1', n: list.filter(s => pct(s) > 0).length }] } });
     }
     const pr = p.match(/^\/api\/styles\/([^/]+)\/pairs$/);
     if (pr) {
@@ -180,7 +199,7 @@ http.createServer(async (req, res) => {
         failNext = false; const big = [...cart.lines].sort((a, b) => b.qty - a.qty)[0]; const now = Math.max(1, Math.floor(big.qty / 2)); stock[`${big.styleId}|${big.color}|${big.size}`] = now;
         return err(res, 409, 'STOCK_CHANGED', 'Some sizes sold out while you were ordering.', { lines: [{ ...big, requested: big.qty, available: now }] });
       }
-      const lines = cart.lines.map(l => { const s = byId.get(l.styleId)!; return { ...l, name: s.name, rate: s.rate, points: s.points }; });
+      const lines = cart.lines.map(l => { const s = byId.get(l.styleId)!; return { ...l, name: s.name, rate: offerFor(s.id, s.rate)?.rate ?? s.rate, points: s.points }; });
       const o = mkOrder(`CT-${++orderNo}`, lines, 'review', 0); o.note = cart.note; o.po = cart.po; (o as any).key = b.idempotencyKey;
       for (const l of lines) stock[`${l.styleId}|${l.color}|${l.size}`] -= l.qty;
       orders.unshift(o); queue.push(o); cart = { lines: [], note: '', po: '', updatedAt: new Date().toISOString(), version: cart.version + 1 };
@@ -239,4 +258,4 @@ http.createServer(async (req, res) => {
     if (p === '/api/admin/sync/stock') return send(res, 202, { ok: true });
     return err(res, 404, 'NOT_FOUND', `No mock for ${m} ${p}`);
   } catch (e) { console.error(e); return err(res, 500, 'MOCK_ERROR', String(e)); }
-}).listen(PORT, () => console.log(`mock api on :${PORT} · retailer ${RET.phone} (invite /i/${RET.invite}) · distributor ${DIST.phone} · admin 9845000001 · code 482916`));
+}

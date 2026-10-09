@@ -10,6 +10,7 @@ import { cart, useCart, type SaveStatus } from '../../state/cart';
 import { applyStock, avail, LOW, sizesOf, spec, useStockVersion, useStyles } from '../../state/catalogue';
 import { upsertOrder } from '../../state/orders';
 import { useMe } from '../../state/session';
+import { RewardNudge } from '../../components/RewardCards';
 import { quickAdd } from '../../state/ui';
 import { toast } from '../../state/toast';
 import { Garment } from '../../components/Garment';
@@ -17,6 +18,7 @@ import { Icon } from '../../components/Icon';
 import { PLink } from '../../components/PLink';
 import { ContactButtons } from '../../components/Contact';
 import { enterNext } from '../../components/QtyGrid';
+import { tradeRate } from '../../components/Price';
 
 type Conflict = StockConflict['lines'];
 interface Group { styleId: string; color: string; lines: CartLine[] }
@@ -59,7 +61,7 @@ export default function CartPage() {
   const dist = me.retailer?.distributor;
 
   const pieces = v.pieces;
-  const value = v.lines.reduce((a, l) => a + l.qty * (styles[l.styleId]?.rate ?? 0), 0);
+  const value = v.lines.reduce((a, l) => a + l.qty * tradeRate(styles[l.styleId]), 0);
   const points = v.lines.reduce((a, l) => a + l.qty * (styles[l.styleId]?.points ?? 0), 0);
   const open = conflict?.filter(c => v.qty(c.styleId, c.color, c.size) > c.available) ?? [];
   useEffect(() => { if (conflict && !open.length) { setConflict(null); toast('All fixed. Ready to place'); } }, [conflict, open.length]);
@@ -182,6 +184,7 @@ export default function CartPage() {
             <div className="r"><span className="muted">At your wholesale rate. GST as per invoice.</span></div>
             <div className="r"><span>Reward points on this order</span><b className="num" style={{ color: 'var(--citrus-ink)' }}>+{num(points)}</b></div>
           </div>
+          {points > 0 && <RewardNudge points={me.points ?? 0} adding={points} />}
           <MetaFields distName={dist?.name ?? 'your distributor'} note={v.note} po={v.po} />
           <div className="note info" style={{ fontSize: 12.5 }}><Icon name="users" size={18} /><span>Goes to <b style={{ display: 'inline' }}>{dist?.name ?? 'your distributor'}</b>{dist?.city ? `, ${dist.city},` : ''} for review. Billing and credit stay as today.</span></div>
           {placeErr && (
@@ -267,7 +270,7 @@ function CartLineCard({ g, style, flagged, allGroups, hide }: { g: Group; style?
           <b>{style?.name ?? g.styleId}</b>
           <button type="button" className="rm" onClick={remove} aria-label={`Remove ${style?.name ?? g.styleId}, ${g.color}`}><Icon name="x" size={18} /></button>
         </div>
-        <div className="muted" style={{ fontSize: 12.5 }}><span className="mono">{g.styleId}</span>{style && <> · {inr(style.rate)}/pc · +{style.points} pts/pc</>}</div>
+        <div className="muted" style={{ fontSize: 12.5 }}><span className="mono">{g.styleId}</span>{style && <> · <span className={style.offer ? 'deal-ink' : ''}>{inr(tradeRate(style))}/pc</span>{style.offer && <> <span className="pr-off">{style.offer.pct}% off</span></>} · +{style.points} pts/pc</>}</div>
         {style && (
           <div className="cedit">
           <label className="csel"><span className="sw" style={{ background: style.colors.find(c => c.name === g.color)?.hex }} />
@@ -281,7 +284,7 @@ function CartLineCard({ g, style, flagged, allGroups, hide }: { g: Group; style?
           </div>
         )}
       </div>
-      <div className="chint">Type any quantity in any size. Clear a size to drop it.</div>
+      <div className="chint">Type any quantity in any size. Tap × on a size, or type 0, to delete it.</div>
       <div className="cgrid" style={{ ['--n' as string]: zs.length }} data-cscope>
         {zs.map(z => {
           const lq = v.qty(g.styleId, g.color, z);
@@ -293,19 +296,25 @@ function CartLineCard({ g, style, flagged, allGroups, hide }: { g: Group; style?
           return (
             <label key={z} className={`cc${bad ? ' flag' : note ? ' capped' : ''}${out ? ' out' : ''}`}>
               <span className="z">{z}</span>
-              <input className="cin" inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" placeholder="Type" value={lq || ''} disabled={out}
+              <input className="cin" inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" placeholder={out ? '–' : 'Type'} value={lq || ''} disabled={out}
                 aria-label={`${style?.name ?? g.styleId}, ${g.color}, size ${z}${n !== undefined ? `, ${n} available` : ''}`}
                 onFocus={e => { const el = e.currentTarget; setTimeout(() => { try { el.select(); } catch { /* ignore */ } }, 0); }}
                 onChange={e => cart.set(g.styleId, g.color, z, parseInt(e.target.value.replace(/\D/g, '').slice(0, 4), 10) || 0, style)}
                 onKeyDown={e => enterNext(e, '.cartl', '.cin', '.sum .btn.block')} />
-              <span className="av">{n === undefined ? '…' : n === 0 ? 'Out' : n <= LOW ? `${n} left` : `${num(n)} avail`}</span>
+              <span className={`av${n === 0 ? ' oos' : ''}`}>{n === undefined ? '…' : n === 0 ? 'Out of stock' : n <= LOW ? `${n} left` : `${num(n)} in stock`}</span>
+              {lq > 0 && (
+                <button type="button" className="cdel" aria-label={`Delete size ${z}`} title={`Delete size ${z}`}
+                  onClick={e => { e.preventDefault(); e.stopPropagation(); const was = lq; cart.set(g.styleId, g.color, z, 0, style); toast(`Size ${z} deleted`, { undo: () => cart.set(g.styleId, g.color, z, was, style) }); }}>
+                  <Icon name="x" size={12} />
+                </button>
+              )}
               {note && <span className="rn" role="status">{note}</span>}
             </label>
           );
         })}
       </div>
       <div className="cfoot">
-        <span className="num"><b>{num(q)} pcs{style ? ` · ${inr(q * style.rate)}` : ''}</b> <span className="muted">· {q ? (style ? `+${num(q * style.points)} pts` : '') : 'will be removed'}</span></span>
+        <span className="num"><b>{num(q)} pcs{style ? ` · ${inr(q * tradeRate(style))}` : ''}</b> <span className="muted">· {q ? (style ? `+${num(q * style.points)} pts` : '') : 'will be removed'}</span></span>
         <span className="acts">
           <button type="button" className="linkbtn" onClick={() => quickAdd.open({ styleId: g.styleId, color: g.color, mode: 'edit' })}>Quick fill</button>
         </span>

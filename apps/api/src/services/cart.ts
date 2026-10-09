@@ -1,7 +1,7 @@
 // One server-side cart per retailer, autosaved on every edit so it survives devices, reloads and bad networks.
 // Lines are absolute quantities per size (idempotent PUTs), capped at live availability.
 import type { Cart, CartLine } from '@citrus/shared';
-import { SIZES, DEFAULT_RATIO, POLICY } from '@citrus/shared';
+import { SIZES, DEFAULT_RATIO, POLICY, offerFor } from '@citrus/shared';
 import { db } from '../db/knex.ts';
 import { stockFor } from './stock.ts';
 import { styles } from './catalogue.ts';
@@ -86,7 +86,7 @@ export async function reorderPreview(retailerId: string, orderId: string) {
     out.push({ styleId: l.style_id, color: l.color, size: l.size, qty: q });
   }
   const { byId } = await styles();
-  return { orderNumber: o.num, placedAt: new Date(o.placed_at).toISOString(), lines: out, skipped, reduced, totalQty: out.reduce((a, l) => a + l.qty, 0), totalValue: out.reduce((a, l) => a + l.qty * (byId.get(l.styleId)?.rate ?? 0), 0) };
+  return { orderNumber: o.num, placedAt: new Date(o.placed_at).toISOString(), lines: out, skipped, reduced, totalQty: out.reduce((a, l) => a + l.qty, 0), totalValue: out.reduce((a, l) => { const st = byId.get(l.styleId); return a + l.qty * (st ? offerFor(st.id, st.rate)?.rate ?? st.rate : 0); }, 0) };
 }
 
 export async function reorder(retailerId: string, orderId: string) {

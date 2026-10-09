@@ -3,12 +3,15 @@ import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 // Real API by default. VITE_MOCK=1 uses the dev-only mock in dev/mock-api.ts (port 4300); CITRUS_API overrides both.
+// VITE_DEMO=1 builds the self-contained hosted demo (mock API in the page, relative paths, no service worker) into dist-demo.
+const DEMO = process.env.VITE_DEMO === '1';
 const API = process.env.CITRUS_API ?? (process.env.VITE_MOCK === '1' ? 'http://localhost:4300' : 'http://localhost:4000');
 
 export default defineConfig({
+  base: DEMO ? './' : '/',
   plugins: [
     react(),
-    VitePWA({
+    !DEMO && VitePWA({
       registerType: 'autoUpdate',
       injectRegister: false,
       includeAssets: ['icon.svg', 'apple-touch-icon.png'],
@@ -69,5 +72,5 @@ export default defineConfig({
       '/webhooks': { target: API, changeOrigin: true },
     },
   },
-  build: { target: 'es2022', sourcemap: true },
+  build: DEMO ? { target: 'es2022', outDir: 'dist-demo', sourcemap: false, emptyOutDir: true } : { target: 'es2022', sourcemap: true },
 });

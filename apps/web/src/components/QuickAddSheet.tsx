@@ -12,6 +12,7 @@ import { Sheet } from './Sheet';
 import { QtyGrid, useCartSource, useDraftSource } from './QtyGrid';
 import { ColorPicker, productHref } from './ProductTile';
 import type { StyleCard } from '@citrus/shared';
+import { tradeRate } from './Price';
 
 export function QuickAddSheet() {
   const q = useQuick();
@@ -51,7 +52,7 @@ function Body({ style, color, mode }: { style: StyleCard; color: string; mode: '
           <div style={{ minWidth: 0 }}>
             <div className="eyebrow">{mode === 'edit' ? 'Edit sizes in cart' : 'Quick add'} · <span className="mono">{style.id}</span></div>
             <h3 style={{ fontSize: 20, marginTop: 2 }}>{style.name}</h3>
-            <span className="muted num small">{inr(style.rate)}/pc · MRP {inr(style.mrp)} · +{style.points} pts/pc</span>
+            <span className="muted num small">{inr(tradeRate(style))}/pc{style.offer ? ` (${style.offer.pct}% off)` : ''} · MRP {inr(style.mrp)} · +{style.points} pts/pc</span>
           </div>
         </div>
         <button type="button" className="close" onClick={quickAdd.close} aria-label="Close"><Icon name="x" size={18} /></button>
@@ -59,7 +60,7 @@ function Body({ style, color, mode }: { style: StyleCard; color: string; mode: '
       {mode === 'add' ? <ColorPicker style={style} value={color} onChange={quickAdd.setColor} /> : <div className="eyebrow">Colour · {color}</div>}
       <QtyGrid key={style.id + color + mode} style={style} color={color} src={src} showCopy={mode === 'add'} onCopied={() => { draft.clear(style.id, color); quickAdd.close(); }} />
       <div className="qfoot">
-        <div className="t" aria-live="polite"><b className="num">{num(pcs)} pcs · {inr(pcs * style.rate)}</b><span className="muted">+{num(pcs * style.points)} points</span></div>
+        <div className="t" aria-live="polite"><b className="num">{num(pcs)} pcs · {inr(pcs * tradeRate(style))}</b><span className="muted">+{num(pcs * style.points)} points</span></div>
         <button type="button" className="btn sec" onClick={() => { quickAdd.close(); nav(productHref(style.id, color), { viewTransition: true }); }}>Details</button>
         {mode === 'edit'
           ? <button type="button" className="btn" data-gadd onClick={quickAdd.close}>Done</button>

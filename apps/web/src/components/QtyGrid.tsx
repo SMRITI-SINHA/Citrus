@@ -15,6 +15,7 @@ import { toast } from '../state/toast';
 import { dmy, inr, num } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Icon } from './Icon';
+import { tradeRate } from './Price';
 
 export interface QtySource { get: (size: string) => number; set: (size: string, q: number) => number; setAll: (m: Record<string, number>) => void; note: (size: string) => string | undefined }
 
@@ -138,7 +139,7 @@ export function QtyGrid({ style, color, src, showCopy = true, onCopied }: { styl
       </div>
       <div className="qsum" aria-live="polite">
         {pcs > 0
-          ? <><b className="num">{num(pcs)} pcs</b> × {inr(style.rate)} = <b className="num">{inr(pcs * style.rate)}</b><span className="muted"> · {zs.filter(z => src.get(z) > 0).map(z => `${z} ${src.get(z)}`).join(' · ')}</span></>
+          ? <><b className="num">{num(pcs)} pcs</b> × {inr(tradeRate(style))} = <b className="num">{inr(pcs * tradeRate(style))}</b><span className="muted"> · {zs.filter(z => src.get(z) > 0).map(z => `${z} ${src.get(z)}`).join(' · ')}</span></>
           : <span className="muted">Nothing typed yet. Tap any box above and type a number.</span>}
       </div>
       <details className="qfill">
@@ -194,7 +195,7 @@ export function SizeMix({ style }: { style: StyleCard }) {
   const noun = cat.toLowerCase();
   const sum = mix.reduce((a, b) => a + b, 0);
   const from = info?.source === 'saved' ? 'You set this mix.'
-    : info?.source === 'orders' ? `Worked out from all the ${noun} you ordered in the last 6 months (${num(info.pieces)} pcs).`
+    : info?.source === 'orders' ? `Your usual ${noun} mix over the last 6 months (${num(info.pieces)} pcs).`
       : `CITRUS standard mix. Once you have ordered more ${noun}, we will use your own.`;
 
   async function save(ratio: number[] | null) {

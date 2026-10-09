@@ -102,7 +102,7 @@ let manifest: Record<string, string> = {};
 let ver = 0;
 const subs = new Set<() => void>();
 if (typeof window !== 'undefined') {
-  fetch('/photos/manifest.json', { cache: 'no-cache' })
+  fetch(BASE + 'manifest.json', { cache: 'no-cache' })
     .then(r => (r.ok && (r.headers.get('content-type') ?? '').includes('json') ? r.json() : {}))
     .then((m: Record<string, string>) => { if (m && typeof m === 'object' && Object.keys(m).length) { manifest = m; ver++; subs.forEach(f => f()); } })
     .catch(() => { /* no product photos yet: collection photos only */ });

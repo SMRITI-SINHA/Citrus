@@ -44,7 +44,7 @@ export function HelpCard({ context, line }: { context?: string; line?: string })
   return (
     <div className="card helpcard">
       <span className="av" aria-hidden="true">{c.name ? initials(c.name) : 'C'}</span>
-      <div className="who"><b>{c.name ? `${c.name}, ${t('yourRep')}` : 'CITRUS'}</b><span className="muted">{line ?? 'Prefer to talk it through? Call or WhatsApp, like always.'}</span></div>
+      <div className="who"><b>{c.name ? `${c.name}, ${t('yourRep')}` : 'CITRUS'}</b><span className="muted">{line ?? 'Prefer to talk it through? Call or WhatsApp.'}</span></div>
       <ContactButtons context={context} compact />
     </div>
   );

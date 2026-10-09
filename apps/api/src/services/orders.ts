@@ -6,7 +6,7 @@
 // Every transition writes an order_event (audit trail) and queues its ERP call and messages in the same transaction.
 import type { Knex } from 'knex';
 import type { Order, OrderStatus, PlaceOrderRequest, StockConflict, CartLine, DistributorDecision } from '@citrus/shared';
-import { POLICY, SIZES } from '@citrus/shared';
+import { offerFor, POLICY, SIZES } from '@citrus/shared';
 import { db } from '../db/knex.ts';
 import { redis } from '../lib/redis.ts';
 import { uid, maskPhone } from '../lib/ids.ts';
@@ -134,7 +134,8 @@ export async function placeOrder(rid: string, userId: string, body: PlaceOrderRe
   const { byId } = await styles();
   for (const l of lines) if (!byId.get(l.styleId)) throw bad('UNKNOWN_SKU', `${l.styleId} is no longer in the catalogue. Remove it and try again.`);
   const totalQty = lines.reduce((a, l) => a + l.qty, 0);
-  const totalValue = lines.reduce((a, l) => a + l.qty * byId.get(l.styleId)!.rate, 0);
+  const rateNow = (id: string) => { const st = byId.get(id)!; return offerFor(st.id, st.rate)?.rate ?? st.rate; }; // scheme rate when a scheme runs (ASSUMPTION 'schemes')
+  const totalValue = lines.reduce((a, l) => a + l.qty * rateNow(l.styleId), 0);
   if (POLICY.minOrderValue > 0 && totalValue < POLICY.minOrderValue) throw bad('BELOW_MINIMUM', `Minimum order is ${rupees(POLICY.minOrderValue)}.`);
   const retailer = await db('retailers').where({ id: rid }).first();
   const num = await nextOrderNumber();
@@ -163,7 +164,7 @@ export async function placeOrder(rid: string, userId: string, body: PlaceOrderRe
       });
       await trx('order_lines').insert(lines.map((l, i) => {
         const s = byId.get(l.styleId)!;
-        return { order_id: id, style_id: l.styleId, name: s.name, color: l.color, size: l.size, qty: l.qty, orig_qty: l.qty, rate: s.rate, points: s.points, position: i };
+        return { order_id: id, style_id: l.styleId, name: s.name, color: l.color, size: l.size, qty: l.qty, orig_qty: l.qty, rate: offerFor(s.id, s.rate)?.rate ?? s.rate, points: s.points, position: i };
       }));
       await event(trx, id, 'placed', 'retailer', `Order placed: ${totalQty} pcs, ${rupees(totalValue)}`);
       await clearCart(rid, trx);
