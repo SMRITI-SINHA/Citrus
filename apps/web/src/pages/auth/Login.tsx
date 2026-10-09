@@ -9,7 +9,7 @@ export default function Login() {
   return (
     <AuthLayout>
       <div>
-        <h1 style={{ fontSize: 40 }}>Sign in</h1>
+        <h1 style={{ fontSize: 30 }}>Sign in</h1>
         <p className="muted" style={{ marginTop: 6 }}>Retailers, distributors and the CITRUS team sign in with their registered mobile number.</p>
       </div>
       {s.status === 'anon' && s.offline && <div className="note warn" role="status"><div className="grow"><b>You are offline</b>Connect to the internet to sign in.</div></div>}

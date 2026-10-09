@@ -38,6 +38,12 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api\//, /^\/webhooks\//],
         runtimeCaching: [
           {
+            // CITRUS product photos: cached on first view so the catalogue stays visual offline.
+            urlPattern: ({ url }) => url.pathname.startsWith('/photos/'),
+            handler: 'CacheFirst',
+            options: { cacheName: 'photos', expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 } },
+          },
+          {
             urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com' || url.origin === 'https://fonts.gstatic.com',
             handler: 'CacheFirst',
             options: { cacheName: 'fonts', expiration: { maxEntries: 30, maxAgeSeconds: 60 * 60 * 24 * 365 } },

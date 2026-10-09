@@ -28,7 +28,7 @@ export default function Rewards() {
       <h1 className="title">{t('rewards')}</h1>
       <section className="rw">
         <div className="eyebrow">{t('progress')}</div>
-        <div className="big num" style={{ fontSize: 64 }} aria-live="polite">{num(points)} <em style={{ fontSize: '.4em' }}>pts</em></div>
+        <div className="big num" style={{ fontSize: 48 }} aria-live="polite">{num(points)} <em style={{ fontSize: '.4em' }}>pts</em></div>
         <div className="bar" role="progressbar" aria-valuenow={tier.pct} aria-valuemin={0} aria-valuemax={100} aria-label="Progress to next reward"><i style={{ width: `${tier.pct}%` }} /></div>
         <div><b>{t('away', { n: num(tier.away), r: tier.next.name })}</b></div>
       </section>

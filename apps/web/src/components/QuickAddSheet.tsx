@@ -50,7 +50,7 @@ function Body({ style, color, mode }: { style: StyleCard; color: string; mode: '
           <div className="im" style={{ width: 84, height: 104, borderRadius: 14 }}><Garment spec={spec(style, color)} /></div>
           <div style={{ minWidth: 0 }}>
             <div className="eyebrow">{mode === 'edit' ? 'Edit sizes in cart' : 'Quick add'} · <span className="mono">{style.id}</span></div>
-            <h3 style={{ fontSize: 26, marginTop: 2 }}>{style.name}</h3>
+            <h3 style={{ fontSize: 20, marginTop: 2 }}>{style.name}</h3>
             <span className="muted num small">{inr(style.rate)}/pc · MRP {inr(style.mrp)} · +{style.points} pts/pc</span>
           </div>
         </div>

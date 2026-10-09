@@ -1,10 +1,10 @@
 // Product imagery. Real CITRUS photography only: no drawn garments.
 // Order of preference for a style + colour:
 //   1. a product photo listed in /photos/manifest.json ("STYLE|Colour" or "STYLE" -> URL), filled from WFX/Ginesys item images or a CITRUS shoot;
-//   2. the CITRUS collection photo for the style's line (the same ten collections as citrusclothing.in/all-collections.html).
-// VITE_PHOTO_BASE points the collection photos at a self-hosted copy; by default they load from citrusclothing.in.
-// A collection photo may show a different colour from the one selected, so a swatch of the selected colour sits on it.
+//   2. the closest garment shot from the CITRUS photo library (lib/photos.ts): same garment type, nearest colour, varied per style.
+// When the library shot is a different colour from the one being ordered, a swatch of the ordered colour sits on it.
 import { useState, useSyncExternalStore } from 'react';
+import { BRAND, LOOKS, SHOTS, type GarmentType, type PhotoShot } from '../lib/photos';
 
 export interface GarmentSpec { kind: string; pattern: string; fit: string; hex: string; name?: string; color?: string; fabric?: string; styleId?: string }
 
@@ -20,20 +20,23 @@ export const isBottom = (kind: string) => kind === 'trouser' || kind === 'formal
 export const isDark = (hex: string) => lum(safeHex(hex)) < 0.35;
 
 // ---------- CITRUS collections ----------
-const BASE = ((import.meta.env.VITE_PHOTO_BASE as string | undefined) ?? 'https://citrusclothing.in/img/categories/').replace(/\/?$/, '/');
+// Self-hosted copies of the ten collection photos on citrusclothing.in/all-collections.html (public/photos/look).
+const BASE = ((import.meta.env.VITE_PHOTO_BASE as string | undefined) ?? '/photos/').replace(/\/?$/, '/');
 export const LINES = {
-  casual: { label: 'Casual Shirts', file: 'CASUAL SHIRT.webp' },
-  formalShirt: { label: 'Formal Shirts', file: 'FORMAL SHIRTS.webp' },
-  knit: { label: 'Knitwear', file: 'KNITWEAR.webp' },
-  cotton: { label: 'Cotton Trousers', file: 'COTTON TROUSERS.webp' },
-  lycra: { label: 'Four-way Lycra Trousers', file: 'FOUR-WAY LYCRA TROUSERS.webp' },
-  travel: { label: 'Travel Pants', file: 'TRAVEL PANTS.webp' },
-  denim: { label: 'Denim', file: 'DENIM.webp' },
-  cargo: { label: 'Cargo', file: 'CARGO.webp' },
-  shorts: { label: 'Shorts', file: 'SHORTS.webp' },
-  formalPant: { label: 'Formal Pants', file: 'FORMAL PANTS.webp' },
+  casual: { label: 'Casual Shirts', file: 'look/casual-shirt.webp' },
+  formalShirt: { label: 'Formal Shirts', file: 'look/formal-shirts.webp' },
+  knit: { label: 'Knitwear', file: 'look/knitwear.webp' },
+  cotton: { label: 'Cotton Trousers', file: 'look/cotton-trousers.webp' },
+  lycra: { label: 'Four-way Lycra Trousers', file: 'look/four-way-lycra-trousers.webp' },
+  travel: { label: 'Travel Pants', file: 'look/travel-pants.webp' },
+  denim: { label: 'Denim', file: 'look/denim.webp' },
+  cargo: { label: 'Cargo', file: 'look/cargo.webp' },
+  shorts: { label: 'Shorts', file: 'look/shorts.webp' },
+  formalPant: { label: 'Formal Pants', file: 'look/formal-pants.webp' },
 } as const;
 export type Line = keyof typeof LINES;
+export { LOOKS };
+export const brandPhoto = (id: keyof typeof BRAND | string) => BASE + (BRAND[id]?.src ?? 'brand/store-front.webp');
 
 /** Which CITRUS collection a style belongs to, from the item fields we have (kind, name, fabric, pattern). */
 export function lineOf(s: Pick<GarmentSpec, 'kind' | 'name' | 'fabric' | 'pattern'>): Line {
@@ -50,7 +53,49 @@ export function lineOf(s: Pick<GarmentSpec, 'kind' | 'name' | 'fabric' | 'patter
   if (/formal|poplin|twill|satin/.test(t) || /stripe/i.test(s.pattern ?? '')) return 'formalShirt';
   return 'casual';
 }
-export const linePhoto = (l: Line) => BASE + encodeURIComponent(LINES[l].file);
+export const linePhoto = (l: Line) => BASE + LINES[l].file;
+
+// ---------- library shot for a style + colour ----------
+function rgb(hex: string) { const n = parseInt(safeHex(hex).slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }
+function lab(hex: string) {
+  const f = (c: number) => { c /= 255; return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; };
+  const [r, g, b] = rgb(hex).map(f);
+  const x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047, y = r * 0.2126 + g * 0.7152 + b * 0.0722, z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+  const t = (v: number) => (v > 0.008856 ? Math.cbrt(v) : 7.787 * v + 16 / 116);
+  return [116 * t(y) - 16, 500 * (t(x) - t(y)), 200 * (t(y) - t(z))];
+}
+const dist = (a: string, b: string) => { const p = lab(a), q = lab(b); return Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
+function hash(s: string) { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; }
+
+/** Garment types that can stand in for an item, best first. */
+function typesFor(kind: string, pattern: string): GarmentType[] {
+  const k = (kind || 'shirt').toLowerCase(), p = (pattern || '').toLowerCase();
+  if (k === 'polo') return ['polo', 'tee'];
+  if (k === 'tee') return ['tee', 'polo'];
+  if (k === 'denim') return ['denim', 'trouser'];
+  if (k === 'shorts') return ['shorts'];
+  if (k === 'formal') return ['formal', 'trouser'];
+  if (isBottom(k)) return ['trouser', 'formal'];
+  if (p.includes('print')) return ['print', 'shirt'];
+  if (p.includes('check')) return ['check', 'shirt', 'print'];
+  return ['shirt', 'print', 'check'];
+}
+const picked = new Map<string, { shot: PhotoShot; close: boolean }>();
+/** Nearest-colour CITRUS shot of the same garment type. Styles with the same colour get different shots where the library allows. */
+export function shotFor(spec: Pick<GarmentSpec, 'kind' | 'pattern' | 'hex' | 'styleId' | 'name' | 'color'>) {
+  const key = `${spec.kind}|${spec.pattern}|${spec.hex}|${spec.styleId ?? spec.name ?? ''}`;
+  const hit = picked.get(key); if (hit) return hit;
+  const types = typesFor(spec.kind, spec.pattern);
+  const scored = SHOTS.filter(s => types.includes(s.garment))
+    .map(s => ({ s, d: dist(spec.hex, s.hex) + types.indexOf(s.garment) * 22 }))
+    .sort((a, b) => a.d - b.d);
+  const best = scored[0];
+  const near = scored.filter(x => x.d <= best.d + 10);
+  const choice = near[hash(spec.styleId ?? spec.name ?? '') % near.length];
+  const out = { shot: choice.s, close: dist(spec.hex, choice.s.hex) < 16 };
+  picked.set(key, out);
+  return out;
+}
 
 // ---------- optional per-product photos ----------
 let manifest: Record<string, string> = {};
@@ -67,7 +112,9 @@ const useManifest = () => useSyncExternalStore(f => { subs.add(f); return () => 
 export function photoFor(spec: GarmentSpec): { src: string; exact: boolean; line: Line } {
   const line = lineOf(spec);
   const own = spec.styleId && (manifest[`${spec.styleId}|${spec.color ?? ''}`] ?? manifest[spec.styleId]);
-  return own ? { src: own, exact: !!manifest[`${spec.styleId}|${spec.color ?? ''}`], line } : { src: linePhoto(line), exact: false, line };
+  if (own) return { src: own, exact: !!manifest[`${spec.styleId}|${spec.color ?? ''}`], line };
+  const { shot, close } = shotFor({ ...spec, hex: safeHex(spec.hex) });
+  return { src: BASE + shot.src, exact: close, line };
 }
 
 function Img({ src, alt, line, pos }: { src: string; alt: string; line: Line; pos?: string }) {
@@ -85,7 +132,7 @@ export function Garment({ spec, label, swatch = true }: { spec: GarmentSpec; lab
     <span className="ph" data-line={p.line}>
       <Img src={p.src} alt={alt || LINES[p.line].label} line={p.line} />
       {swatch && spec.color && !p.exact && (
-        <span className="ph-sw" title={`Shown in a CITRUS ${LINES[p.line].label.toLowerCase()} photo; you are ordering ${spec.color}`}>
+        <span className="ph-sw" title={`Photo shows a similar CITRUS piece; you are ordering ${spec.color}`}>
           <i style={{ background: safeHex(spec.hex) }} /><span>{spec.color}</span>
         </span>
       )}
@@ -105,11 +152,12 @@ export function Outfit({ top, bottom, label }: { top: GarmentSpec; bottom: Garme
   );
 }
 
-/** Large brand imagery for hero panels: two CITRUS collection photos. */
-export function BrandArt({ lines = ['casual', 'cotton'] as Line[] }: { lines?: Line[] }) {
+/** Large brand imagery for hero panels: CITRUS store and campaign photos, or collection photos. */
+export function BrandArt({ lines = ['casual', 'cotton'] as Line[], brand }: { lines?: Line[]; brand?: string[] }) {
+  const srcs = brand ? brand.map(brandPhoto) : lines.map(linePhoto);
   return (
     <span className="ph-art">
-      {lines.map(l => <span key={l} className="frame"><Img src={linePhoto(l)} alt="" line={l} /></span>)}
+      {srcs.map((src, i) => <span key={src} className="frame"><Img src={src} alt="" line={lines[i] ?? 'casual'} /></span>)}
     </span>
   );
 }

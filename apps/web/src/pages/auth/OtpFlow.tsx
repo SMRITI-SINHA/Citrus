@@ -26,7 +26,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           <p style={{ marginTop: 14 }}>Live stock, your usual size ratios and rewards on every piece. Ordering CITRUS essentials now takes minutes, not phone calls.</p>
         </div>
         <div className="art" aria-hidden="true">
-          <BrandArt lines={['formalShirt', 'cotton']} />
+          <BrandArt brand={['store-front']} />
         </div>
       </aside>
       <div className="pane"><div className="box">

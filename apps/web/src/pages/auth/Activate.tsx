@@ -12,7 +12,7 @@ export default function Activate() {
   return (
     <AuthLayout>
       <div>
-        <h1 style={{ fontSize: 40 }}>Welcome to CITRUS Trade</h1>
+        <h1 style={{ fontSize: 30 }}>Welcome to CITRUS Trade</h1>
         <p className="muted" style={{ marginTop: 6 }}>Verify your mobile number to activate your retailer account.</p>
       </div>
       {loading && <div className="skel card" style={{ height: 96 }} aria-busy="true" />}

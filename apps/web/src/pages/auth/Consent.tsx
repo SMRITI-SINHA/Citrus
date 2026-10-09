@@ -42,7 +42,7 @@ export function Consent({ me }: { me: Me }) {
           <button type="button" className="langbtn" onClick={toggle}>{t('language')}</button>
         </div>
         <div>
-          <h1 style={{ fontSize: 38 }}>Before you start</h1>
+          <h1 style={{ fontSize: 28 }}>Before you start</h1>
           <p className="muted" style={{ marginTop: 6 }}>Welcome{me.retailer ? `, ${me.retailer.store}` : ''}. Here is how CITRUS uses your details.</p>
         </div>
         <div className="card box">

@@ -15,7 +15,7 @@ export type Exc = AdminException;
 export type Overview = AdminOverview;
 const SEV = { bad: 0, warn: 1, info: 2 } as const;
 /** Most severe first, newest first within a severity. */
-export const exceptionsOf = (o?: Overview): Exc[] => [...(o?.live?.exceptions ?? [])].sort((a, b) => SEV[a.severity] - SEV[b.severity] || b.at.localeCompare(a.at));
+export const exceptionsOf = (o?: Overview): Exc[] => [...(o?.live?.exceptions ?? [])].sort((a, b) => SEV[a.severity] - SEV[b.severity] || (b.at ?? '').localeCompare(a.at ?? ''));
 export const dropExc = (id: string) => updateWhere<Overview>('/api/admin/overview', ov => ({ ...ov, live: { ...ov.live, exceptions: ov.live.exceptions.filter(e => e.id !== id) } }));
 const TONE = { bad: 's-bad', warn: 's-warn', info: 's-info' } as const;
 

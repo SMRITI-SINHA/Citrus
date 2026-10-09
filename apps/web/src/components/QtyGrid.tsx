@@ -12,7 +12,7 @@ import { avail, lastOrderFor, LOW, ratioOf, sizesOf, useStockVersion } from '../
 import { cart, useCart } from '../state/cart';
 import { draft, useDraft } from '../state/ui';
 import { toast } from '../state/toast';
-import { dmy, num } from '../lib/format';
+import { dmy, inr, num } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Icon } from './Icon';
 
@@ -75,6 +75,9 @@ export function QtyGrid({ style, color, src, showCopy = true, onCopied }: { styl
   const totRef = useRef<HTMLInputElement>(null);
   const pcs = zs.reduce((a, z) => a + src.get(z), 0);
 
+  const want = parseInt(total, 10) || 0;
+  const preview = want > 0 ? (() => { const out = splitByRatio(want, ratio, caps); return { n: want, out, got: out.reduce((a, b) => a + b, 0) }; })() : null;
+
   function split(n: number, label?: string) {
     const out = splitByRatio(n, ratio, caps);
     src.setAll(Object.fromEntries(zs.map((z, i) => [z, out[i]])));
@@ -133,6 +136,11 @@ export function QtyGrid({ style, color, src, showCopy = true, onCopied }: { styl
           );
         })}
       </div>
+      <div className="qsum" aria-live="polite">
+        {pcs > 0
+          ? <><b className="num">{num(pcs)} pcs</b> × {inr(style.rate)} = <b className="num">{inr(pcs * style.rate)}</b><span className="muted"> · {zs.filter(z => src.get(z) > 0).map(z => `${z} ${src.get(z)}`).join(' · ')}</span></>
+          : <span className="muted">Nothing typed yet. Tap any box above and type a number.</span>}
+      </div>
       <details className="qfill">
         <summary><Icon name="spark" size={14} /><span>Fill sizes for me <span className="muted qf-sub">optional</span></span></summary>
         <div className="qfill-b">
@@ -149,8 +157,16 @@ export function QtyGrid({ style, color, src, showCopy = true, onCopied }: { styl
               <input ref={totRef} id={`${uid}-tot`} className="totin" inputMode="numeric" pattern="[0-9]*" enterKeyHint="done" placeholder="Type, e.g. 50" autoComplete="off"
                 value={total} onChange={e => setTotal(e.target.value.replace(/\D/g, '').slice(0, 5))} onFocus={e => e.currentTarget.select()}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); doSplit(); } }} />
-              <button type="button" className="btn sec" onClick={doSplit}>Fill sizes</button>
+              <button type="button" className="btn" onClick={doSplit}>Fill the sizes</button>
             </div>
+            {preview && (
+              <div className="qprev" role="status">
+                <span><b>{num(preview.n)} pieces</b> will be filled like this:</span>
+                <span className="qprev-row">{zs.map((z, i) => <span key={z} className={preview.out[i] ? '' : 'zero'}><i>{z}</i><b>{preview.out[i]}</b></span>)}</span>
+                {zs.some((_z, i) => ratio[i] > 0 && caps[i] === 0) && preview.got === preview.n && <span className="muted xs">{zs.filter((_z, i) => ratio[i] > 0 && caps[i] === 0).join(', ')} is out of stock, so its share went to the other sizes. Change any box after if you prefer.</span>}
+                {preview.got < preview.n && <span className="warn-ink xs">Only {num(preview.got)} of {num(preview.n)} are in stock in these sizes. Out-of-stock sizes are left empty, not moved to other sizes.</span>}
+              </div>
+            )}
             <div className="chips" role="group" aria-label="Sets">
               {[1, 2, 3].map(m => <button type="button" key={m} className="chip" onClick={() => { setTotal(String(setSize * m)); split(setSize * m, `${setSize * m} pcs`); }}>{setSize * m} pcs</button>)}
             </div>

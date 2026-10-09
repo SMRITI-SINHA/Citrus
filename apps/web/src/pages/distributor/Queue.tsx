@@ -130,7 +130,7 @@ function OrderPanel({ o, onDone }: { o: Order; onDone: (id: string) => void }) {
     <div className="card dpanel">
       <div>
         <div className="eyebrow">Order <span className="mono">{o.number}</span></div>
-        <h2 style={{ fontSize: 28, marginTop: 4 }}>{o.store}, {o.city}</h2>
+        <h2 style={{ fontSize: 22, marginTop: 4 }}>{o.store}, {o.city}</h2>
         <div className="sub muted small">{num(o.totalQty)} pcs · {inr(o.totalValue)} · placed {dstr(o.placedAt)}</div>
       </div>
       {err && <div className="note bad" role="alert"><Icon name="alert" size={18} /><div className="grow"><b>Your decision was not sent</b>{err.message}</div></div>}

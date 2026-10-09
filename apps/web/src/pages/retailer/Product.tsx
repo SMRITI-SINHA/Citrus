@@ -67,12 +67,11 @@ function ProductView({ style }: { style: StyleCard }) {
             <Garment spec={spec(style, color)} />
             <div className="tags">{style.isNew && <span className="tagx new">NEW</span>}<span className="tagx pts">+{style.points} pts / pc</span></div>
           </div>
-          <Pairs style={style} color={color} />
         </div>
         <div className="stack-lg" style={{ gap: 18 }}>
           <div>
             <div className="eyebrow">{style.category} · NOS · <span className="mono">{style.id}</span></div>
-            <h1 style={{ fontSize: 'clamp(36px,4.2vw,52px)', marginTop: 6 }}>{style.name}</h1>
+            <h1 style={{ fontSize: 'clamp(24px,2.6vw,32px)', marginTop: 6 }}>{style.name}</h1>
             <div style={{ marginTop: 6, fontSize: 18 }} className="num"><b>{inr(style.rate)}</b> <span className="muted" style={{ fontSize: 14 }}>per piece · MRP {inr(style.mrp)}{margin > 0 ? ` · ${margin}% margin` : ''}</span></div>
           </div>
           {style.reason && <div className="why"><Icon name="spark" size={14} /> {style.reason}</div>}
@@ -86,6 +85,7 @@ function ProductView({ style }: { style: StyleCard }) {
             <div className="t" aria-live="polite"><b className="num">{num(pcs)} pcs · {inr(pcs * style.rate)}</b><span className="muted">+{num(pcs * style.points)} points</span></div>
             <button type="button" className="btn" data-gadd disabled={!pcs} onClick={add}>{t('add')}</button>
           </div>
+          <Pairs style={style} color={color} />
           <div className="facts">
             <div><span className="muted">Fit</span><b>{style.fit}</b></div><div><span className="muted">Fabric</span><b>{style.fabric}</b></div>
             <div><span className="muted">Pattern</span><b>{style.pattern}</b></div><div><span className="muted">Points</span><b>+{style.points} per piece</b></div>

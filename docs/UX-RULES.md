@@ -4,7 +4,8 @@ Full playbook with sources: https://claude.ai/code/artifact/202a15f0-8acd-434d-a
 Reference implementation of the look and flows: `docs/reference-demo.html` (single-file clickable demo approved by Smriti). The React app must match or beat it.
 
 ## Brand and look
-- Premium, editorial: Instrument Serif for display headings, Geist for UI, Geist Mono for codes. Deep navy `#0F1B2D` hero panels, ink `#111312`, warm off-white `#F3F4F3`, a single citrus accent `#E5A50A` used sparingly. Light and dark themes.
+- Premium, production-grade: Inter for headings, UI and codes (the face Shopify Polaris, Linear, Flipkart and Udaan load; checked 9 Oct 2026), Noto Sans Devanagari for Hindi. Semibold headings with tight tracking, no display serif. Deep navy `#0F1B2D` hero panels, ink `#111312`, warm off-white `#F3F4F3`, a single citrus accent `#E5A50A` used sparingly. Light and dark themes.
+- Real CITRUS photography only (see `apps/web/public/photos/README.md`). No drawn garments.
 - CITRUS tagline "Defining Modern Menswear with Classic Elegance" on sign-in only. Retailer copy is plain trade language.
 - Every screen size: phone (bottom tab bar), tablet/desktop (side rail). No horizontal scroll. Safe-area insets. Touch targets ≥ 44px.
 - English numerals, lakh grouping (₹1,20,000). Colours always shown as swatches. English/Hindi toggle always visible.
