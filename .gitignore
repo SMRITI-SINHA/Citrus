@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+*.log
+coverage
+apps/web/dist
+*.log
+test-results
+playwright-report
+dump.rdb
+*.rdb

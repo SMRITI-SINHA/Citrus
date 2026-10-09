@@ -1,0 +1,131 @@
+import { useEffect } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
+import type { StyleCard } from '@citrus/shared';
+import { useQuery } from '../../lib/query';
+import type { CataloguePage } from '../../lib/types';
+import { inr, num } from '../../lib/format';
+import { useT } from '../../lib/i18n';
+import { cart } from '../../state/cart';
+import { colorTotal, seedStyles, sizesOf, spec, useStyle } from '../../state/catalogue';
+import { draft } from '../../state/ui';
+import { toast } from '../../state/toast';
+import { Garment, isBottom, isDark, Outfit } from '../../components/Garment';
+import { Icon } from '../../components/Icon';
+import { PLink } from '../../components/PLink';
+import { ColorPicker, productHref } from '../../components/ProductTile';
+import { QtyGrid, useDraftSource } from '../../components/QtyGrid';
+import { ErrorNote } from '../../components/Bits';
+import { HelpCard } from '../../components/Contact';
+
+export default function Product() {
+  const { id = '' } = useParams();
+  const { data: style, error, refresh } = useStyle(id);
+  const { t } = useT();
+  if (error && !style) return <><BackLink /><ErrorNote error={error} onRetry={refresh} context={`Question about style ${id}`} /></>;
+  if (!style) return <><BackLink /><ProductSkeleton /></>;
+  return <ProductView style={style} />;
+  function BackLink() { return <div><PLink to="/catalogue" className="linkbtn backlink"><Icon name="back" size={18} />{t('catalogue')}</PLink></div>; }
+}
+
+function ProductSkeleton() {
+  return (
+    <div className="pdp" aria-busy="true">
+      <div className="skel" style={{ aspectRatio: '4/5', borderRadius: 22 }} />
+      <div className="stack"><div className="skel line" style={{ width: '40%' }} /><div className="skel" style={{ height: 52, width: '80%' }} /><div className="skel card" style={{ height: 380 }} /></div>
+    </div>
+  );
+}
+
+function ProductView({ style }: { style: StyleCard }) {
+  const { t } = useT();
+  const nav = useNavigate();
+  const [sp, setSp] = useSearchParams();
+  const wanted = sp.get('color');
+  const color = style.colors.some(c => c.name === wanted) ? wanted! : style.colors.find(c => colorTotal(style, c.name) > 0)?.name ?? style.colors[0]?.name ?? '';
+  const src = useDraftSource(style, color);
+  const zs = sizesOf(style);
+  const pcs = zs.reduce((a, z) => a + src.get(z), 0);
+  const margin = style.mrp ? Math.round((1 - style.rate / style.mrp) * 100) : 0;
+
+  function add() {
+    const before = cart.get();
+    const lines = zs.map(z => ({ styleId: style.id, color, size: z, qty: src.get(z) })).filter(l => l.qty > 0);
+    const prev = lines.map(l => ({ ...l, qty: before.qty(l.styleId, l.color, l.size) }));
+    const r = cart.add(lines, { [style.id]: style });
+    draft.clear(style.id, color);
+    toast(`${num(r.added)} pcs added to cart${r.capped ? `. ${r.capped} size${r.capped > 1 ? 's' : ''} capped at stock` : ''}`, { undo: () => cart.setMany(prev) });
+  }
+
+  return (
+    <>
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <button type="button" className="linkbtn backlink" onClick={() => (history.length > 1 ? nav(-1) : nav('/catalogue'))}><Icon name="back" size={18} />{t('catalogue')}</button>
+      </div>
+      <div className="pdp">
+        <div className="gallery">
+          <div className="hero">
+            <Garment spec={spec(style, color)} />
+            <div className="tags">{style.isNew && <span className="tagx new">NEW</span>}<span className="tagx pts">+{style.points} pts / pc</span></div>
+          </div>
+          <Pairs style={style} color={color} />
+        </div>
+        <div className="stack-lg" style={{ gap: 18 }}>
+          <div>
+            <div className="eyebrow">{style.category} · NOS · <span className="mono">{style.id}</span></div>
+            <h1 style={{ fontSize: 'clamp(36px,4.2vw,52px)', marginTop: 6 }}>{style.name}</h1>
+            <div style={{ marginTop: 6, fontSize: 18 }} className="num"><b>{inr(style.rate)}</b> <span className="muted" style={{ fontSize: 14 }}>per piece · MRP {inr(style.mrp)}{margin > 0 ? ` · ${margin}% margin` : ''}</span></div>
+          </div>
+          {style.reason && <div className="why"><Icon name="spark" size={14} /> {style.reason}</div>}
+          <div className="fgroup"><div className="eyebrow">Colour · {color}</div><ColorPicker style={style} value={color} onChange={c => setSp({ color: c }, { replace: true })} /></div>
+          <div className="fgroup">
+            <div className="eyebrow">Quantities · live stock per size</div>
+            <QtyGrid key={color} style={style} color={color} src={src} />
+            <div className="muted xs">Stock is live from the CITRUS warehouse. Adding to cart does not hold stock; we check again when you place the order.</div>
+          </div>
+          <div className="stickybuy">
+            <div className="t" aria-live="polite"><b className="num">{num(pcs)} pcs · {inr(pcs * style.rate)}</b><span className="muted">+{num(pcs * style.points)} points</span></div>
+            <button type="button" className="btn" data-gadd disabled={!pcs} onClick={add}>{t('add')}</button>
+          </div>
+          <div className="facts">
+            <div><span className="muted">Fit</span><b>{style.fit}</b></div><div><span className="muted">Fabric</span><b>{style.fabric}</b></div>
+            <div><span className="muted">Pattern</span><b>{style.pattern}</b></div><div><span className="muted">Points</span><b>+{style.points} per piece</b></div>
+          </div>
+          <HelpCard context={`About ${style.name} (${style.id}), ${color}`} line="Not sure about sizes or quantity? Ask, like you always do." />
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** "Want the trouser that goes with this?" Pairs from the other half of the wardrobe, with a colour that works. */
+function Pairs({ style, color }: { style: StyleCard; color: string }) {
+  const { t } = useT();
+  const bottom = isBottom(style.kind);
+  // Pairs come from the API (bought-together first, then a colour that works); the catalogue is only a fallback.
+  const { data: api, error } = useQuery<StyleCard[]>(`/api/styles/${encodeURIComponent(style.id)}/pairs?color=${encodeURIComponent(color)}`, { staleMs: 300_000 });
+  const { data: fb } = useQuery<CataloguePage>(error ? `/api/catalogue?category=${bottom ? 'Shirts' : 'Trousers'}&sort=best&inStock=1&limit=8` : null, { staleMs: 120_000 });
+  const list = api ?? fb?.items;
+  useEffect(() => { seedStyles(list); }, [list]);
+  const dark = isDark(style.colors.find(c => c.name === color)?.hex ?? '#888');
+  const pairs = (list ?? []).slice(0, 4).map(p => {
+    const inStock = p.colors.filter(c => colorTotal(p, c.name) > 0);
+    const pool = inStock.length ? inStock : p.colors;
+    const named = p.reason?.match(/:\s*([^:]+)$/)?.[1]?.trim();
+    const pick = pool.find(c => c.name === named) ?? pool.find(c => isDark(c.hex) !== dark) ?? pool[0];
+    return { p, c: pick?.name ?? '', why: p.reason?.startsWith('Often') ? p.reason : undefined };
+  });
+  if (!pairs.length) return null;
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div className="eyebrow">{bottom ? 'Shirts that go with it' : t('lookSub')}</div>
+      <div className="look">
+        {pairs.map(({ p, c, why }) => (
+          <PLink key={p.id} to={productHref(p.id, c)} style={{ flex: '0 0 auto', width: 96, textAlign: 'left', fontSize: 11.5, display: 'flex', flexDirection: 'column', gap: 6, color: 'inherit', textDecoration: 'none' }}>
+            <span className="lk">{bottom ? <Outfit top={spec(p, c)} bottom={spec(style, color)} /> : <Outfit top={spec(style, color)} bottom={spec(p, c)} />}</span>
+            <span><b>{p.name}</b><br /><span className="muted">{c}</span>{why && <><br /><span className="muted xs">{why}</span></>}</span>
+          </PLink>
+        ))}
+      </div>
+    </div>
+  );
+}
