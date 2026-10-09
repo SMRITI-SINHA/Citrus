@@ -14,9 +14,17 @@ const ART: Record<number, { file: string; tint: string; tag: string }> = {
 };
 export const rewardArt = (at: number) => ART[at] ?? ART[1000];
 
+/** Photo credits the CC licences require; shown under the reward cards. */
+export const REWARD_CREDITS = 'Photos: KOSIN SUKHUM (CC BY-SA 4.0), Padgriffin (CC BY 4.0), Ashley Pomeroy (CC BY 4.0), via Wikimedia Commons. Prize models may differ.';
+
 export function RewardPic({ at, name }: { at: number; name: string }) {
   const a = rewardArt(at);
   const [bad, setBad] = useState(false);
+  if (at === 4000) return (
+    <span className="rpic cnote" style={{ background: a.tint }} role="img" aria-label={name}>
+      <span className="cn-card"><span className="cn-brand">CITRUS · Credit note</span><b className="num">₹4,000</b><span className="cn-sub">Off your next order</span></span>
+    </span>
+  );
   return (
     <span className="rpic" style={{ background: a.tint }}>
       {!bad && <img src={BASE + a.file} alt={name} loading="lazy" decoding="async" onError={() => setBad(true)} />}

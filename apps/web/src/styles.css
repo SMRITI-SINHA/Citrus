@@ -943,3 +943,11 @@ body.sheet-open .toast-host{top:calc(env(safe-area-inset-top,0px) + 12px);bottom
 .dealnote{display:block;margin-top:10px;line-height:1.4}
 .cc{position:relative;overflow:visible}
 .cc .cdel{top:-8px;right:-8px;width:20px;height:20px;background:var(--surface);box-shadow:var(--shadow-card);z-index:1}
+/* Credit-note reward: a designed CITRUS voucher, no third-party gift-card photo */
+.rpic.cnote{padding:10%}
+.cn-card{position:relative;display:flex;flex-direction:column;justify-content:center;gap:2px;width:100%;height:100%;padding:8px 12px;border-radius:10px;background:var(--deep);color:#fff;box-shadow:0 6px 18px rgba(3,40,28,.25);overflow:hidden}
+.cn-card::after{content:'';position:absolute;right:-18px;top:-18px;width:56px;height:56px;border-radius:50%;background:var(--citrus);opacity:.9}
+.cn-brand{font-size:10px;letter-spacing:.08em;text-transform:uppercase;opacity:.8}
+.cn-card b{font-size:clamp(18px,4vw,26px);line-height:1.1}
+.cn-sub{font-size:11px;opacity:.85}
+.rnudge .rpic.cnote{padding:6px}.rnudge .cn-brand,.rnudge .cn-sub{display:none}.rnudge .cn-card b{font-size:13px}

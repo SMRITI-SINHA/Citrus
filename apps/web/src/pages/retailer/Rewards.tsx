@@ -11,7 +11,7 @@ import { SecHead, TileSkeletons } from '../../components/Bits';
 import { HelpCard } from '../../components/Contact';
 import { useTheme } from '../../components/Shell';
 import { nextTier } from '../../lib/rewards';
-import { RewardCards } from '../../components/RewardCards';
+import { REWARD_CREDITS, RewardCards } from '../../components/RewardCards';
 
 export default function Rewards() {
   const me = useMe();
@@ -35,6 +35,7 @@ export default function Rewards() {
       <section className="stack" style={{ gap: 12 }}>
         <SecHead title="Rewards this month" sub="Order CITRUS styles, collect points, claim the prize" />
         <RewardCards points={points} />
+        <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>{REWARD_CREDITS}</p>
       </section>
       <div className="note info"><Icon name="spark" size={18} /><div className="grow"><b>How points work</b>Every piece earns points; new and priority styles earn more. You see the points on every product before you order. Rewards and point values are set by CITRUS each month.</div></div>
       <section>
