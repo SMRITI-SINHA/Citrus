@@ -1182,7 +1182,7 @@ section>.sechead,section .sechead{margin-bottom:var(--s2)}
 .ptile{container-type:inline-size;gap:12px}
 .ptile .nm{font-size:15px}
 .ptile .price{font-size:16px}
-@container (max-width:200px){
+@container (max-width:180px){
   .ptile .cmore{display:none}
   .ptile .meta{display:none}
   .ptile .cpill{font-size:12.5px;padding:3px 9px 3px 4px;white-space:nowrap}
@@ -1205,4 +1205,12 @@ section>.sechead,section .sechead{margin-bottom:var(--s2)}
   .content:has(.catlay) .chips .chip{min-height:38px}
   .content:has(.catlay) .stack{gap:12px}
 }
-@container (max-width:200px){.ptile .nm{-webkit-line-clamp:2;min-height:2.6em;line-height:1.3}}
+@container (max-width:180px){.ptile .nm{-webkit-line-clamp:2;min-height:2.6em;line-height:1.3}}
+
+/* Other colours: plain swatch circles under the colour pill; each opens the product in that colour */
+.oswatch{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-height:26px}
+.osw{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;box-shadow:0 0 0 1px var(--line-2);background:var(--surface);transition:transform .15s,box-shadow .15s}
+.osw i{width:18px;height:18px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.15)}
+.osw:hover,.osw:focus-visible{transform:scale(1.12);box-shadow:0 0 0 2px var(--ink)}
+.osw-more{font-size:12.5px;font-weight:600;color:var(--indigo);text-decoration:underline;text-underline-offset:2px}
+@container (max-width:180px){.oswatch{gap:6px}.osw{width:22px;height:22px}.osw i{width:16px;height:16px}}

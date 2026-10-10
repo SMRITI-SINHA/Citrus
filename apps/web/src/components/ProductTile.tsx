@@ -27,10 +27,10 @@ export function ProductTile({ style, color, why }: { style: StyleCard; color?: s
         <div className="nm">{style.name}</div>
         <div className="cline-t">
           <span className="cpill"><i className="cdot" style={{ background: style.colors.find(x => x.name === c)?.hex }} />{c}</span>
-          {style.colors.length > 1 && <span className="cmore">+{style.colors.length - 1} colour{style.colors.length > 2 ? 's' : ''}</span>}
         </div>
         <div className="meta">{style.fit} fit · {style.fabric}</div>
       </PLink>
+      <OtherColours style={style} current={c} />
       <Price style={style} />
       <div className="tfoot"><PtsChip n={style.points} per /></div>
       <div className="sizestrip" aria-label="Stock per size">
@@ -51,6 +51,23 @@ export function ColorPicker({ style, value, onChange }: { style: StyleCard; valu
           <span className="sw" style={{ background: cc.hex }} />{cc.name}<span className="muted num" style={{ fontWeight: 500 }}>{num(colorTotal(style, cc.name))}</span>
         </button>
       ))}
+    </div>
+  );
+}
+
+/** The style's other colours as swatches; tapping one opens the product in that colour. */
+function OtherColours({ style, current }: { style: StyleCard; current: string }) {
+  const others = style.colors.filter(x => x.name !== current);
+  if (!others.length) return null;
+  const MAX = 5;
+  return (
+    <div className="oswatch" aria-label="Other colours">
+      {others.slice(0, MAX).map(x => (
+        <PLink key={x.name} to={productHref(style.id, x.name)} className="osw" title={x.name} aria-label={`${style.name} in ${x.name}`} data={`/api/styles/${style.id}`}>
+          <i style={{ background: x.hex }} />
+        </PLink>
+      ))}
+      {others.length > MAX && <PLink to={productHref(style.id, current)} className="osw-more" aria-label={`${others.length - MAX} more colours`}>+{others.length - MAX}</PLink>}
     </div>
   );
 }
