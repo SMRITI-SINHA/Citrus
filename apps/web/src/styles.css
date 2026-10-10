@@ -1636,3 +1636,8 @@ a.cpill{text-decoration:none}
   background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--muted) 16%,transparent) 0 4px,transparent 4px 9px),var(--surface-2)}
 .best-sz .out b{text-decoration:none;color:var(--muted)}
 .best-sz .out::after,.sz.out::after{display:none}
+/* round 15e: shelf frame = bold violet-to-pink gradient with a soft glow */
+.mq .shelf .sc{padding:4.5px;background:linear-gradient(135deg,#7B2FF7 0%,#B62BD9 45%,#E2289B 75%,#FF5FA2 100%);
+  box-shadow:0 10px 24px -12px rgba(214,36,159,.65),0 0 0 1px rgba(182,43,217,.15)}
+.mq .shelf .sc .ph{inset:4.5px;box-shadow:0 0 0 2.5px var(--surface)}
+.mq .shelf:hover .sc{box-shadow:0 0 22px rgba(226,40,155,.45),0 16px 30px -12px rgba(214,36,159,.75)}
