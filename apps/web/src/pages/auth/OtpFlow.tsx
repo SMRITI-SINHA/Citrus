@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router';
 import type { OtpRequestResult, Session } from '@citrus/shared';
 import { api, ApiError } from '../../lib/api';
 import { fmtPhone } from '../../lib/format';
-import { useT } from '../../lib/i18n';
+import { useT, t as tx } from '../../lib/i18n';
 import { session } from '../../state/session';
 import { toast } from '../../state/toast';
 import { ROLE_HOME } from '../../routes';
@@ -120,7 +120,7 @@ export function OtpFlow({ invite, hint }: { invite?: string; hint?: string }) {
                 aria-invalid={!!err} aria-describedby="mob-help"
                 onChange={e => { setErr(null); const d = e.target.value.replace(/\D/g, '').slice(0, 10); setPhone(d.length > 5 ? `${d.slice(0, 5)} ${d.slice(5)}` : d); }} />
             </div>
-            <span id="mob-help" className="muted small">{hint ?? "We'll send a one-time code by SMS. No password needed."}</span>
+            <span id="mob-help" className="muted small">{hint ?? tx('smsHint')}</span>
           </div>
           {err && !unknown && <span className="err" role="alert" style={{ color: 'var(--bad)', fontSize: 13 }}>{err.message}</span>}
           {unknown && <UnknownNumber message={err.message} />}

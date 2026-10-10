@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { POLICY } from '@citrus/shared';
 import { useQuery } from '../../lib/query';
 import { nextTier } from '../../lib/rewards';
-import { useT } from '../../lib/i18n';
+import { useT, t as tx } from '../../lib/i18n';
 import { num } from '../../lib/format';
 import type { HomeData } from '../../lib/types';
 import { useMe } from '../../state/session';
@@ -54,13 +54,13 @@ export default function Home() {
         <section className="hero-b hero-c fade">
           <div className="copy">
             <div className="hero-hi"><span className="hi">{t('hello')}, <b>{firstName}</b></span><span className="nospill"><Icon name="spark" size={14} />NOS essentials</span></div>
-            <h1>Pause. Breathe. <em>Restock.</em></h1>
+            <h1>{tx('heroA')} <em>{tx('heroB')}</em></h1>
             <div className="searchrow hero-search">
               <HomeSearch />
               <VoiceButton onResult={q => nav(`/catalogue?q=${encodeURIComponent(q)}`)} />
             </div>
             <div className="acts">
-              {lastOrder ? <button type="button" className="btn citrus" onClick={() => setReorder({ orderId: lastOrder.orderId, number: lastOrder.number, placedAt: lastOrder.placedAt })}>Restock from last order</button>
+              {lastOrder ? <button type="button" className="btn citrus" onClick={() => setReorder({ orderId: lastOrder.orderId, number: lastOrder.number, placedAt: lastOrder.placedAt })}>{tx('restockLast')}</button>
                 : <PLink to="/catalogue" className="btn citrus">{t('browse')}</PLink>}
               {lastOrder && <PLink to="/catalogue" className="btn light">{t('browse')}</PLink>}
             </div>
@@ -171,7 +171,7 @@ function HeroRewards({ points }: { points: number }) {
   const items = REWARD_TIERS; void points;
   return (
     <PLink to="/rewards" className="hrw" aria-label="See rewards you can win">
-      <span className="hrw-lab"><Icon name="gift" size={14} />Win with every order</span>
+      <span className="hrw-lab"><Icon name="gift" size={14} />{tx('winEvery')}</span>
       <span className="hrw-win" aria-hidden="true">
         <span className="hrw-run">
           {[0, 1].map(c => items.map((r, i) => (
@@ -191,7 +191,7 @@ function Shelves() {
   if (!data) return null;
   return (
     <section className="home-shelves">
-      <SecHead title="Shop by shelf" sub="Tap a shelf to see every style in stock" action={<PLink to="/catalogue" className="linkbtn" preloadVisible>See all</PLink>} />
+      <SecHead title={tx('shelfT')} sub={tx('shelfS')} action={<PLink to="/catalogue" className="linkbtn" preloadVisible>See all</PLink>} />
       <div style={{ marginTop: 12 }}>
         <Marquee label="Shelves">
           {data.map(x => (
@@ -249,7 +249,7 @@ function BestSellers({ onRestock, lastOrder }: { onRestock: (r: ReorderRef) => v
   useEffect(() => { seedStyles(data?.map(b => b.style)); }, [data]);
   return (
     <section>
-      <SecHead title="Restock your best-sellers" sub="Styles you order most, with your usual sizes" action={lastOrder ? <button type="button" className="linkbtn" onClick={() => onRestock(lastOrder)}>Restock last order</button> : undefined} />
+      <SecHead title={tx('bestT')} sub={tx('bestS')} action={lastOrder ? <button type="button" className="linkbtn" onClick={() => onRestock(lastOrder)}>{tx('restockLastShort')}</button> : undefined} />
       <div style={{ marginTop: 12 }}>
         {!data ? <TileSkeletons n={4} scroll /> : data.length ? (
           <Rail label="Your best-sellers" style={{ gridAutoColumns: 'minmax(300px,340px)' }}>{data.map(b => <BestCard key={b.style.id + b.color} b={b} onRestock={() => onRestock({ items: [{ styleId: b.style.id, color: b.color, want: b.usual }], title: `Restock ${b.style.name}`, eyebrow: `${b.color} · your usual sizes`, usual: true })} />)}</Rail>
@@ -290,7 +290,7 @@ function GoesWith() {
   if (!data?.length) return null;
   return (
     <section>
-      <SecHead title="Goes with what you stock" sub="New to your store, picked to pair with styles you order often" />
+      <SecHead title={tx('pairT')} sub={tx('pairS')} />
       <div style={{ marginTop: 12 }}><Rail label="Goes with what you stock">{data.map(s => <ProductTile key={s.id} style={s} color={s.pairColor} why={s.reason} />)}</Rail></div>
     </section>
   );

@@ -1668,3 +1668,20 @@ a.cpill{text-decoration:none}
 /* Round 15i: both marquees loop forever, even when the phone asks for reduced motion */
 @media (prefers-reduced-motion:reduce){.hrw-run{animation:hrw-ltr 36s linear infinite!important}}
 
+
+/* Round 16a: accepted changes stay visible on the order */
+.card.agreed{display:flex;flex-direction:column;gap:8px;padding:14px 16px;border:1px solid color-mix(in srgb,var(--ok) 30%,var(--line))}
+.card.agreed .eyebrow{color:var(--ok)}
+
+/* Round 16b: margin is information, discount is a deal. Two greens so margin never reads as an offer */
+:root{--margin-ink:#4F7A70}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--margin-ink:#93C4B6}}
+:root[data-theme="dark"]{--margin-ink:#93C4B6}
+.pr-margin,.marginrow b{color:var(--margin-ink);font-weight:500}
+.pr-off,.pr-main b.deal,.saverow b,.saverow span{color:var(--deal);font-weight:700}
+
+/* Round 16c: on phones a focused box always lands above the bottom tab bar and the order bar */
+@media (max-width:1023px){
+  html{scroll-padding-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+  input,select,textarea{scroll-margin-bottom:calc(150px + env(safe-area-inset-bottom,0px))}
+}

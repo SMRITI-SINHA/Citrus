@@ -11,7 +11,7 @@ import { Icon } from '../../components/Icon';
 import { PcsChip, PtsChip, ValueTxt } from '../../components/Price';
 import { SecHead } from '../../components/Bits';
 import { ReorderSheet, type ReorderRef } from './ReorderSheet';
-import { useT } from '../../lib/i18n';
+import { useT, t as tx } from '../../lib/i18n';
 import type { Page } from '../../lib/types';
 import { nextStep, soShown, useMyOrders } from '../../state/orders';
 import { PLink } from '../../components/PLink';
@@ -123,13 +123,13 @@ export default function Orders() {
           <p className="muted" style={{ margin: 0 }}>Every order you have placed, newest first. Filters don't apply here.</p>
           {again.length > 0 && (
             <section className="stack" style={{ gap: 10 }}>
-              <SecHead title="Order again" sub="NOS essentials, delivered in the last 90 days. Reorder in one tap, checked against today's stock." />
+              <SecHead title={tx('orderAgain')} sub="NOS essentials, delivered in the last 90 days. Reorder in one tap, checked against today's stock." />
               <div className="ogrid">{again.map(o => <HistoryCard key={o.id} o={o} inStock={stockOf(o)} onReorder={() => setReorder({ orderId: o.id, number: o.number, placedAt: o.placedAt })} />)}</div>
             </section>
           )}
           {active.length > 0 && (
             <section className="stack" style={{ gap: 10 }}>
-              <SecHead title="On the way" sub="Not delivered yet" action={<button type="button" className="linkbtn" onClick={() => set('tab', null)}>See all</button>} />
+              <SecHead title={tx('onWay')} sub={tx('onWaySub')} action={<button type="button" className="linkbtn" onClick={() => set('tab', null)}>See all</button>} />
               <div className="ogrid">{[...active].sort((a, b) => b.placedAt.localeCompare(a.placedAt)).map(o => <OrderCard key={o.id} o={o} />)}</div>
             </section>
           )}

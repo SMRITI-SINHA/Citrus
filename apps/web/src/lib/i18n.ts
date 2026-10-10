@@ -24,6 +24,8 @@ const EN = {
   accept: 'Accept changes', cancelOrder: 'Cancel order', whatNext: 'What happens next',
   approve: 'Approve', modify: 'Modify', reject: 'Reject', waiting: 'Waiting {n}',
   account: 'Account', appearance: 'Appearance', theme: 'Theme',
+  signInSub: 'Retailers, distributors and the CITRUS team sign in with their registered mobile number.', firstTime: 'First time? Open the link or QR code your CITRUS rep sent you.', smsHint: "We'll send a one-time code by SMS. No password needed.",
+  heroA: 'Pause. Breathe.', heroB: 'Restock.', restockLast: 'Restock from last order', winEvery: 'Win with every order', shelfT: 'Shop by shelf', shelfS: 'Tap a shelf to see every style in stock', bestT: 'Restock your best-sellers', bestS: 'Styles you order most, with your usual sizes', restockLastShort: 'Restock last order', pairT: 'Goes with what you stock', pairS: 'New to your store, picked to pair with styles you order often', howMany: 'How many pieces?', howManySub: 'Tap a box and type the number for each size.', howManyTotal: 'How many pieces in total?', emptyCartSub: 'Reorder your usual from Home, or browse the catalogue.', cartHint: 'Type any quantity right here. 0 removes a size. Changes save automatically.', cartHint2: 'Type any quantity in any size. Tap × on a size, or type 0, to delete it.', orderAgain: 'Order again', onWay: 'On the way', onWaySub: 'Not delivered yet', rwT: 'Rewards this month', rwS: 'Order CITRUS styles, collect points, claim the prize', earnT: 'Earn faster', earnS: 'Styles with the most points per piece, in stock now',
 };
 type Key = keyof typeof EN;
 
@@ -50,6 +52,8 @@ const HI: Partial<Record<Key, string>> = {
   accept: 'बदलाव मंज़ूर करें', cancelOrder: 'ऑर्डर रद्द करें', whatNext: 'आगे क्या होगा',
   approve: 'मंज़ूर', modify: 'बदलें', reject: 'अस्वीकार', waiting: '{n} से इंतज़ार',
   account: 'खाता', appearance: 'दिखावट', theme: 'थीम',
+  signInSub: 'रिटेलर, डिस्ट्रीब्यूटर और CITRUS टीम अपने रजिस्टर्ड मोबाइल नंबर से साइन इन करें।', firstTime: 'पहली बार? CITRUS रेप का भेजा लिंक या QR कोड खोलें।', smsHint: 'हम SMS पर एक बार का कोड भेजेंगे। पासवर्ड की ज़रूरत नहीं।',
+  heroA: 'रुकिए। साँस लीजिए।', heroB: 'फिर से स्टॉक करें।', restockLast: 'पिछले ऑर्डर से स्टॉक भरें', winEvery: 'हर ऑर्डर पर इनाम', shelfT: 'शेल्फ़ से चुनें', shelfS: 'शेल्फ़ पर टैप करें, स्टॉक के सारे स्टाइल देखें', bestT: 'आपके सबसे ज़्यादा बिकने वाले स्टाइल', bestS: 'जो स्टाइल आप सबसे ज़्यादा मँगाते हैं, आपके रोज़ के साइज़ के साथ', restockLastShort: 'पिछला ऑर्डर दोहराएँ', pairT: 'आपके स्टॉक के साथ जँचेगा', pairS: 'आपके स्टोर के लिए नया, आपके रोज़ के स्टाइल से मेल खाता', howMany: 'कितने पीस चाहिए?', howManySub: 'डिब्बे पर टैप करें और हर साइज़ की गिनती लिखें।', howManyTotal: 'कुल कितने पीस?', emptyCartSub: 'होम से अपना रोज़ का ऑर्डर दोहराएँ, या कैटलॉग देखें।', cartHint: 'यहीं कोई भी गिनती लिखें। 0 लिखने से साइज़ हट जाएगा। बदलाव अपने-आप सेव होते हैं।', cartHint2: 'किसी भी साइज़ में गिनती लिखें। हटाने के लिए × दबाएँ या 0 लिखें।', orderAgain: 'फिर से ऑर्डर करें', onWay: 'रास्ते में', onWaySub: 'अभी डिलीवर नहीं हुआ', rwT: 'इस महीने के रिवॉर्ड्स', rwS: 'CITRUS स्टाइल मँगाएँ, पॉइंट्स जमा करें, इनाम पाएँ', earnT: 'जल्दी कमाएँ', earnS: 'हर पीस पर सबसे ज़्यादा पॉइंट्स वाले स्टाइल, अभी स्टॉक में',
 };
 
 export type Lang = 'en' | 'hi';

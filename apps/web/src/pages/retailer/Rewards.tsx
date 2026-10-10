@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import { useQuery } from '../../lib/query';
 import type { CataloguePage } from '../../lib/types';
 import { fmtPhone, num } from '../../lib/format';
-import { useT } from '../../lib/i18n';
+import { useT, t as tx } from '../../lib/i18n';
 import { session, useMe } from '../../state/session';
 import { seedStyles } from '../../state/catalogue';
 import { Icon } from '../../components/Icon';
@@ -34,13 +34,13 @@ export default function Rewards() {
         <div><b>{t('away', { n: num(tier.away), r: tier.next.name })}</b></div>
       </section>
       <section className="stack" style={{ gap: 12 }}>
-        <SecHead title="Rewards this month" sub="Order CITRUS styles, collect points, claim the prize" />
+        <SecHead title={tx('rwT')} sub={tx('rwS')} />
         <RewardCards points={points} />
         <p className="muted" style={{ fontSize: 11.5, margin: 0 }}>{REWARD_CREDITS}</p>
       </section>
       <div className="note info"><Icon name="spark" size={18} /><div className="grow"><b>How points work</b>Every piece earns points; new and priority styles earn more. You see the points on every product before you order. Rewards and point values are set by CITRUS each month.</div></div>
       <section>
-        <SecHead title="Earn faster" sub="Styles with the most points per piece, in stock now" action={<PLink to="/catalogue?sort=points&inStock=1" className="linkbtn">See all</PLink>} />
+        <SecHead title={tx('earnT')} sub={tx('earnS')} action={<PLink to="/catalogue?sort=points&inStock=1" className="linkbtn">See all</PLink>} />
         <div style={{ marginTop: 12 }}>{data ? <Rail label="Earn faster">{data.items.map(s => <ProductTile key={s.id} style={s} />)}</Rail> : <TileSkeletons n={4} scroll />}</div>
       </section>
 

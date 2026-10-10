@@ -6,7 +6,7 @@ import type { Cart, CartLine, Order, StockConflict, StyleCard } from '@citrus/sh
 import { api, ApiError, uuid } from '../../lib/api';
 import { setCached } from '../../lib/query';
 import { inr, num } from '../../lib/format';
-import { useT } from '../../lib/i18n';
+import { useT, t as tx } from '../../lib/i18n';
 import { cart, useCart, type SaveStatus } from '../../state/cart';
 import { applyStock, avail, LOW, sizesOf, spec, useStockVersion, useStyles } from '../../state/catalogue';
 import { upsertOrder } from '../../state/orders';
@@ -72,7 +72,9 @@ export default function CartPage() {
   useEffect(() => { if (conflict && !open.length) { setConflict(null); toast('All fixed. Ready to place'); } }, [conflict, open.length]);
   const flagged = new Set(open.map(c => `${c.styleId}|${c.color}|${c.size}`));
   const nStyles = new Set(v.lines.map(l => l.styleId)).size;
-  const selLine = `${nStyles} style${nStyles === 1 ? '' : 's'} · ${num(pieces)} pcs selected`;
+  // One count everywhere: styles are distinct designs; extra colours of the same design are named separately.
+  const styleCount = `${nStyles} style${nStyles === 1 ? '' : 's'}${groups.length > nStyles ? ` · ${groups.length} colours` : ''}`;
+  const selLine = `${styleCount} · ${num(pieces)} pcs selected`;
   const blocked = !!phase || open.length > 0 || !pieces || overN > 0;
 
   async function place() {
@@ -119,7 +121,7 @@ export default function CartPage() {
         <h1 className="title">{t('cart')}</h1>
         <div className="card empty">
           <h3>{t('emptyCart')}</h3>
-          <p>Reorder your usual from Home, or browse the catalogue.</p>
+          <p>{tx('emptyCartSub')}</p>
           <div className="row" style={{ marginTop: 14, justifyContent: 'center' }}>
             <PLink to="/home" className="btn">{t('buyAgain')}</PLink>
             <PLink to="/catalogue" className="btn sec">{t('browse')} {t('catalogue').toLowerCase()}</PLink>
@@ -135,11 +137,11 @@ export default function CartPage() {
       <div className="sec-h">
         <h1 className="title">{t('cart')}</h1>
         <div className="stack" style={{ gap: 2, alignItems: 'flex-end' }}>
-          <span className="muted num" aria-live="polite">{num(pieces)} pcs · {groups.length} style{groups.length === 1 ? '' : 's'}</span>
+          <span className="muted num" aria-live="polite">{num(pieces)} pcs · {styleCount}</span>
           <SaveState s={v.status} />
         </div>
       </div>
-      <p className="muted" style={{ marginTop: -4, fontSize: 13 }}>Type any quantity right here. 0 removes a size. Changes save automatically.</p>
+      <p className="muted" style={{ marginTop: -4, fontSize: 13 }}>{tx('cartHint')}</p>
 
       {changedElsewhere && (
         <div className="note warn" role="alert"><Icon name="alert" size={18} /><div className="grow"><b>Your cart changed on another device</b>We've loaded the latest version. Check the quantities below, then place the order again.</div></div>
@@ -179,7 +181,7 @@ export default function CartPage() {
           <h3>{t('orderSummary')}</h3>
           <div aria-live="polite" className="stack" style={{ gap: 11 }}>
             <div className="sumtiles">
-              <div className="stile pcs"><Icon name="box" size={16} /><span>Pieces</span><b className="num">{num(pieces)}</b><small>{groups.length} style{groups.length === 1 ? '' : 's'}</small></div>
+              <div className="stile pcs"><Icon name="box" size={16} /><span>Pieces</span><b className="num">{num(pieces)}</b><small>{styleCount}</small></div>
               <div className="stile pts"><Icon name="gift" size={16} /><span>Points</span><b className="num">+{num(points)}</b><small>on delivery</small></div>
             </div>
             <div className="r t"><span>Order value</span><span className="num">{inr(value)}</span></div>
@@ -291,7 +293,7 @@ function CartLineCard({ g, style, flagged, allGroups, hide }: { g: Group; style?
           </div>
         )}
       </div>
-      <div className="chint">Type any quantity in any size. Tap × on a size, or type 0, to delete it.</div>
+      <div className="chint">{tx('cartHint2')}</div>
       <div className="cgrid" style={{ ['--n' as string]: zs.length }} data-cscope>
         {zs.map(z => <CartCell key={z} g={g} z={z} style={style} flagged={flagged} />)}
       </div>

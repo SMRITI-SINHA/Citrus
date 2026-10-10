@@ -13,7 +13,7 @@ import { cart, useCart } from '../state/cart';
 import { draft, overStock, useDraft, useOverCount } from '../state/ui';
 import { toast } from '../state/toast';
 import { dmy, inr, num } from '../lib/format';
-import { useT } from '../lib/i18n';
+import { useT, t as tx } from '../lib/i18n';
 import { Icon } from './Icon';
 import { PcsChip, PtsChip, SaveChip, savePer, tradeRate, ValueTxt } from './Price';
 
@@ -110,7 +110,7 @@ export function QtyGrid({ style, color, src, showCopy = true, onCopied, scope = 
 
   return (
     <div className="qgrid">
-      <div className="qhint" id={`${uid}-hint`}><Icon name="edit" size={16} /><span><b>How many pieces?</b> Tap a box and type the number for each size.</span></div>
+      <div className="qhint" id={`${uid}-hint`}><Icon name="edit" size={16} /><span><b>{tx('howMany')}</b> {tx('howManySub')}</span></div>
       <div className="sgrid" data-qscope>
         {zs.map((z, i) => <SizeRow key={z} z={z} n={caps[i]} max={max} q={src.get(z)} note={src.note(z)} last={last?.q[z]} hasLast={!!last} src={src} okey={`${scope}|${style.id}|${color}|${z}`} />)}
       </div>
@@ -132,7 +132,7 @@ export function QtyGrid({ style, color, src, showCopy = true, onCopied, scope = 
           )}
           <SizeMix style={style} />
           <div className="totbox">
-            <label htmlFor={`${uid}-tot`}>How many pieces in total?</label>
+            <label htmlFor={`${uid}-tot`}>{tx('howManyTotal')}</label>
             <div className="totrow">
               <input ref={totRef} id={`${uid}-tot`} className="totin" inputMode="numeric" pattern="[0-9]*" enterKeyHint="done" placeholder="Type, e.g. 50" autoComplete="off"
                 value={total} onChange={e => setTotal(e.target.value.replace(/\D/g, '').slice(0, 5))} onFocus={e => e.currentTarget.select()}
