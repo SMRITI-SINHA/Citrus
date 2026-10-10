@@ -4,6 +4,7 @@
   --bg:#F3F4F3; --surface:#FFFFFF; --surface-2:#EEF0EF; --tile:#E9ECEB; --tile-2:#DFE3E2;
   --ink:#111312; --ink-2:#2B2F2E; --muted:#646B6A; --line:#E1E5E4; --line-2:#D3D8D7;
   --primary:#111312; --on-primary:#FFFFFF;
+  --cta-a:#1E3FD8; --cta-b:#2F7BF5; --cta-grad:linear-gradient(120deg,#1E3FD8 0%,#2F6BF2 55%,#1FA2E8 100%); --cta-glow:rgba(37,84,235,.75);
   --deep:#0F1B2D; --on-deep:#F4F2EC; --deep-2:#1B2A44;
   --citrus:#E5A50A; --on-citrus:#111312; --citrus-soft:#FBF1D6; --citrus-ink:#8A5E00;
   --ok:#1C7A50; --ok-soft:#E1F2E9; --warn:#946000; --warn-soft:#FBF0D8; --bad:#B4372F; --bad-soft:#FBE6E3;
@@ -19,6 +20,7 @@
   --bg:#0B0D0D; --surface:#131616; --surface-2:#1A1E1E; --tile:#1C2121; --tile-2:#252B2B;
   --ink:#EEEEEA; --ink-2:#D5D7D3; --muted:#9BA2A0; --line:#262C2C; --line-2:#333A3A;
   --primary:#F1F0EA; --on-primary:#111312;
+  --cta-a:#3657F0; --cta-b:#5B93FF; --cta-grad:linear-gradient(120deg,#3354F0 0%,#4A7DFA 55%,#2DB0F0 100%); --cta-glow:rgba(70,120,255,.6);
   --deep:#14223A; --on-deep:#F4F2EC; --deep-2:#1F3150;
   --citrus:#F1B42B; --on-citrus:#111312; --citrus-soft:#33290F; --citrus-ink:#F1C35C;
   --ok:#55C893; --ok-soft:#15332A; --warn:#E9B24C; --warn-soft:#382B12; --bad:#F07C72; --bad-soft:#3C1E1C;
@@ -28,6 +30,7 @@
   --bg:#0B0D0D; --surface:#131616; --surface-2:#1A1E1E; --tile:#1C2121; --tile-2:#252B2B;
   --ink:#EEEEEA; --ink-2:#D5D7D3; --muted:#9BA2A0; --line:#262C2C; --line-2:#333A3A;
   --primary:#F1F0EA; --on-primary:#111312;
+  --cta-a:#3657F0; --cta-b:#5B93FF; --cta-grad:linear-gradient(120deg,#3354F0 0%,#4A7DFA 55%,#2DB0F0 100%); --cta-glow:rgba(70,120,255,.6);
   --deep:#14223A; --on-deep:#F4F2EC; --deep-2:#1F3150;
   --citrus:#F1B42B; --on-citrus:#111312; --citrus-soft:#33290F; --citrus-ink:#F1C35C;
   --ok:#55C893; --ok-soft:#15332A; --warn:#E9B24C; --warn-soft:#382B12; --bad:#F07C72; --bad-soft:#3C1E1C;
@@ -969,8 +972,12 @@ body.sheet-open .toast-host{top:calc(env(safe-area-inset-top,0px) + 12px);bottom
 .vval{font-size:15px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
 .vval.big{font-size:20px}
 .tfoot{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:2px}
-.addbtn{display:inline-flex;align-items:center;gap:4px;min-height:36px;padding:6px 14px;border-radius:999px;background:var(--primary);color:var(--on-primary);font-weight:600;font-size:13px;border:0;cursor:pointer}
-.addbtn:hover{filter:brightness(1.15)}
+.addbtn{position:relative;overflow:hidden;display:inline-flex;align-items:center;gap:7px;min-height:38px;padding:6px 16px;border-radius:999px;background:var(--cta-grad);color:#fff;font-weight:650;font-size:13px;letter-spacing:.01em;border:0;cursor:pointer;box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 8px 18px -10px var(--cta-glow);transition:transform .12s,box-shadow .2s,filter .2s}
+.addbtn::after{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.28) 50%,transparent 70%);transform:translateX(-120%);transition:transform .6s}
+.addbtn:hover{filter:saturate(1.1) brightness(1.06);box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 12px 24px -10px var(--cta-glow)}
+.addbtn:hover::after{transform:translateX(120%)}
+.addbtn:active{transform:scale(.98)}
+.addbtn:focus-visible{outline:2px solid var(--cta-b);outline-offset:2px}
 .qsum-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
 /* over-stock: red box, the typed number stays, a plain line says what's available */
 .qin.over,.cin.over{border-color:var(--bad)!important;background:var(--bad-soft)!important;color:var(--bad)!important;box-shadow:0 0 0 3px color-mix(in srgb,var(--bad) 18%,transparent)!important}
