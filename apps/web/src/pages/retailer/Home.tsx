@@ -248,7 +248,7 @@ function BestCard({ b, onRestock }: { b: BestSeller; onRestock: () => void }) {
       <PLink to={productHref(s.id, b.color)} className="best-top" data={`/api/styles/${s.id}`}>
         <span className="best-im"><Garment swatch={false} spec={spec(s, b.color)} /></span>
         <span className="best-id">
-          <span className="best-rank"><Icon name="refresh" size={12} />Ordered {b.orders} times</span>
+          <span className={`best-rank t${Math.min(b.orders, 4)}`}><Icon name="refresh" size={12} />Ordered {b.orders} times</span>
           <b>{s.name}</b>
           <span className="muted small"><span className="mono">{s.id}</span> · {b.color}</span>
           <span className="small"><b className="num">{inr(tradeRate(s))}</b><span className="muted">/pc</span></span>
