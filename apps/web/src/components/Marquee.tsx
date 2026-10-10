@@ -8,31 +8,33 @@ const SPEED = 28; // px per second: slow enough to read every label
 
 export function Marquee({ children, label }: { children: ReactNode; label: string }) {
   const ref = useRef<HTMLDivElement>(null);
-  const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const hold = useRef(false);                        // hover / touch / focus
+  const hold = useRef(false);                        // a finger is on the row
   const idleUntil = useRef(0);                       // resume after manual moves
   const items = Children.toArray(children);
 
   useEffect(() => {
     const el = ref.current; if (!el) return;
-    let raf = 0, last = performance.now(), acc = 0;
+    let raf = 0, last = performance.now();
     const setW = () => el.scrollWidth / 3;
     // Start in the middle copy so the row can loop both ways.
     el.scrollLeft = setW();
+    // Keep our own fractional position: browsers round scrollLeft on zoomed or high-density screens,
+    // so adding a pixel at a time could round back to the same spot and freeze the row.
+    let pos = el.scrollLeft;
     const tick = (t: number) => {
       const dt = Math.min(64, t - last); last = t;
       const w = setW();
-      if (!reduce && !hold.current && t > idleUntil.current) {
-        acc += (SPEED * dt) / 1000;
-        if (acc >= 1) { el.scrollLeft += Math.floor(acc); acc -= Math.floor(acc); }
-      }
-      if (el.scrollLeft >= w * 2) el.scrollLeft -= w;
-      else if (el.scrollLeft < w * 0.5) el.scrollLeft += w;
+      // A swipe or arrow moved the row: carry on from wherever it is now.
+      if (Math.abs(el.scrollLeft - pos) > 2) pos = el.scrollLeft;
+      if (!hold.current && t > idleUntil.current) pos += (SPEED * dt) / 1000;
+      if (pos >= w * 2) pos -= w;
+      else if (pos < w * 0.5) pos += w;
+      if (Math.round(pos) !== el.scrollLeft) el.scrollLeft = pos;
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [reduce]);
+  }, []);
 
   const nudge = () => { idleUntil.current = performance.now() + 1500; };
   const go = (d: number) => {
@@ -45,7 +47,8 @@ export function Marquee({ children, label }: { children: ReactNode; label: strin
   return (
     <div className="mq">
       <div ref={ref} className="mq-track" role="region" aria-label={label}
-        onTouchStart={() => { hold.current = true; }} onTouchEnd={() => { hold.current = false; nudge(); }}>
+        onTouchStart={() => { hold.current = true; }} onTouchEnd={() => { hold.current = false; nudge(); }}
+        onTouchCancel={() => { hold.current = false; nudge(); }}>
         {[0, 1, 2].map(copy => items.map((it, i) => (
           <div key={`${copy}-${i}`} className="mq-item" data-mq-item aria-hidden={copy !== 1 || undefined} inert={copy !== 1 ? true : undefined}>{it}</div>
         )))}

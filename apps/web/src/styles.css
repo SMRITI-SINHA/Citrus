@@ -1664,3 +1664,6 @@ a.cpill{text-decoration:none}
 /* Round 15h: best-seller notes all start on the same line, whether they wrap to two lines or not */
 .best-note,.best-note.ok,.best-note.low{align-items:flex-start;line-height:1.4;min-height:calc(2 * 1.4em)}
 .best-note svg{flex:none;margin-top:2px}
+
+/* Round 15i: both marquees loop forever, even when the phone asks for reduced motion */
+@media (prefers-reduced-motion:reduce){.hrw-run{animation:hrw-ltr 36s linear infinite!important}}
