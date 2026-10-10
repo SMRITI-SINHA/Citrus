@@ -1221,3 +1221,41 @@ section>.sechead,section .sechead{margin-bottom:var(--s2)}
 .osw:hover,.osw:focus-visible{transform:scale(1.12);box-shadow:0 0 0 2px var(--ink)}
 .osw-more{font-size:12.5px;font-weight:600;color:var(--indigo);text-decoration:underline;text-underline-offset:2px}
 @container (max-width:180px){.oswatch{gap:6px}.osw{width:22px;height:22px}.osw i{width:16px;height:16px}}
+
+/* ---------- round 10: colour stack on phones, preview reel ---------- */
+.colrow{display:flex;flex-direction:column;gap:var(--s2,8px);min-width:0}
+.colrow .cline-t{margin-top:0}
+a.cpill{text-decoration:none}
+.cstack{display:none;align-items:center;gap:4px;padding:4px 6px 4px 3px;border-radius:999px;border:0;background:var(--surface-2);color:var(--ink-2);font-size:12.5px;font-weight:600;cursor:pointer;flex:none}
+.cstack .dots{display:inline-flex}
+.cstack .dots i{width:14px;height:14px;border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.22),0 0 0 1.5px var(--surface-2)}
+.cstack .dots i+i{margin-left:-5px}
+.cstack b{font-weight:650;font-variant-numeric:tabular-nums}
+.cstack[aria-expanded="true"]{box-shadow:inset 0 0 0 1.5px var(--ink-2)}
+@media (max-width:640px){
+  .cstack{display:inline-flex}
+  .colrow .oswatch{display:none}
+  .colrow.open .oswatch{display:flex;animation:oswIn .18s ease-out}
+}
+@keyframes oswIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+.reel{position:absolute;inset:0;display:block}
+.reel-shot{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 30%;opacity:0;transition:opacity .45s ease;z-index:1}
+.reel-shot{transform:scale(var(--z,1))}
+.reel-shot.show{opacity:1;animation:kbz 1.6s ease-out both}
+@keyframes kbz{from{transform:scale(var(--z,1))}to{transform:scale(calc(var(--z,1) * 1.06))}}
+.reel.on .ph img{animation:kb 1.6s ease-out both}
+.reel-shot.show,.reel.on .ph img{will-change:transform}
+@keyframes kb{from{transform:scale(1)}to{transform:scale(1.07)}}
+.reel-bar{position:absolute;left:10px;right:10px;bottom:9px;display:flex;gap:4px;z-index:2;pointer-events:none}
+.reel-bar i{flex:1;height:3px;border-radius:3px;background:rgba(255,255,255,.45);overflow:hidden;position:relative}
+.reel-bar i.done{background:rgba(255,255,255,.95)}
+.reel-bar i.now::after{content:"";position:absolute;inset:0;background:#fff;transform-origin:left;animation:rb 1.3s linear both}
+@keyframes rb{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){.reel-shot.show,.reel.on .ph img{animation:none}}
+.colrow .cpill .cdot{flex:none}
+@media (max-width:640px){
+  .colrow .cline-t{gap:4px;flex-wrap:wrap;row-gap:6px}
+  .ptile{padding-inline:10px}
+  .colrow .cpill{font-size:12.5px;padding:3px 9px 3px 4px;gap:6px}
+  .colrow .cpill .cdot{width:15px;height:15px}
+}

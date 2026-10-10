@@ -161,3 +161,19 @@ export function BrandArt({ lines = ['casual', 'cotton'] as Line[], brand }: { li
     </span>
   );
 }
+
+/** One frame of a style's preview reel: a photo plus how it is framed (zoomed in on collar, fabric, fit). */
+export interface ReelShot { src: string; pos: string; zoom: number; key: string }
+/** Shots for a style's preview reel: its own photo, then close-ups of it (collar, fabric, hem). Only this
+ *  style's own photo, so the reel never shows a different garment or colour. Per-SKU photo sets or a model
+ *  video from the shoot replace this later. */
+export function reelFor(spec: GarmentSpec, n = 4): ReelShot[] {
+  const first = photoFor(spec).src;
+  const out: ReelShot[] = [{ src: first, pos: '50% 30%', zoom: 1, key: 'a' }];
+  const bottom = isBottom(spec.kind);
+  const close: ReelShot[] = bottom
+    ? [{ src: first, pos: '50% 35%', zoom: 1.6, key: 'b' }, { src: first, pos: '50% 85%', zoom: 1.7, key: 'c' }]
+    : [{ src: first, pos: '50% 18%', zoom: 1.7, key: 'b' }, { src: first, pos: '55% 50%', zoom: 1.9, key: 'c' }];
+  out.push(close[0], close[1], { src: first, pos: '50% 60%', zoom: 1.25, key: 'd' });
+  return out.slice(0, n);
+}

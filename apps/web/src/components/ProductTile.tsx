@@ -2,7 +2,8 @@ import type { StyleCard } from '@citrus/shared';
 import { avail, colorTotal, LOW, sizesOf, spec, useStockVersion } from '../state/catalogue';
 import { quickAdd } from '../state/ui';
 import { num } from '../lib/format';
-import { Garment } from './Garment';
+import { useState } from 'react';
+import { TileReel } from './TileReel';
 import { Icon } from './Icon';
 import { PLink } from './PLink';
 import { Badges, Price, PtsChip } from './Price';
@@ -19,18 +20,15 @@ export function ProductTile({ style, color, why }: { style: StyleCard; color?: s
     <div className="ptile">
       <div className="img">
         <PLink to={productHref(style.id, c)} aria-label={`${style.name}, ${c}`} data={`/api/styles/${style.id}`} style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>
-          <Garment spec={spec(style, c)} swatch={false} />
+          <TileReel spec={spec(style, c)} />
         </PLink>
       </div>
       <Badges style={style} />
       <PLink to={productHref(style.id, c)} tabIndex={-1} style={{ color: 'inherit', textDecoration: 'none' }} data={`/api/styles/${style.id}`}>
         <div className="nm">{style.name}</div>
-        <div className="cline-t">
-          <span className="cpill"><i className="cdot" style={{ background: style.colors.find(x => x.name === c)?.hex }} />{c}</span>
-        </div>
-        <div className="meta">{style.fit} fit · {style.fabric}</div>
       </PLink>
-      <OtherColours style={style} current={c} />
+      <ColourRow style={style} current={c} />
+      <div className="meta">{style.fit} fit · {style.fabric}</div>
       <Price style={style} />
       <div className="tfoot"><PtsChip n={style.points} per /></div>
       <div className="sizestrip" aria-label="Stock per size">
@@ -55,19 +53,35 @@ export function ColorPicker({ style, value, onChange }: { style: StyleCard; valu
   );
 }
 
-/** The style's other colours as swatches; tapping one opens the product in that colour. */
-function OtherColours({ style, current }: { style: StyleCard; current: string }) {
+const MAX_SW = 5;
+
+/** The selected colour as a named pill. Other colours show as circles below it on laptops; on phones they
+ *  collapse into a small stack of dots with a count beside the pill (Amazon style) that opens into circles on tap. */
+function ColourRow({ style, current }: { style: StyleCard; current: string }) {
+  const [open, setOpen] = useState(false);
   const others = style.colors.filter(x => x.name !== current);
-  if (!others.length) return null;
-  const MAX = 5;
+  const hex = style.colors.find(x => x.name === current)?.hex;
   return (
-    <div className="oswatch" aria-label="Other colours">
-      {others.slice(0, MAX).map(x => (
-        <PLink key={x.name} to={productHref(style.id, x.name)} className="osw" title={x.name} aria-label={`${style.name} in ${x.name}`} data={`/api/styles/${style.id}`}>
-          <i style={{ background: x.hex }} />
-        </PLink>
-      ))}
-      {others.length > MAX && <PLink to={productHref(style.id, current)} className="osw-more" aria-label={`${others.length - MAX} more colours`}>+{others.length - MAX}</PLink>}
+    <div className={`colrow${open ? ' open' : ''}`}>
+      <div className="cline-t">
+        <PLink to={productHref(style.id, current)} tabIndex={-1} className="cpill" data={`/api/styles/${style.id}`}><i className="cdot" style={{ background: hex }} />{current}</PLink>
+        {others.length > 0 && (
+          <button type="button" className="cstack" aria-expanded={open} aria-label={`${others.length} more colour${others.length > 1 ? 's' : ''}`} onClick={() => setOpen(o => !o)}>
+            <span className="dots">{others.slice(0, 2).map(x => <i key={x.name} style={{ background: x.hex }} />)}</span>
+            <b>+{others.length}</b>
+          </button>
+        )}
+      </div>
+      {others.length > 0 && (
+        <div className="oswatch" aria-label="Other colours">
+          {others.slice(0, MAX_SW).map(x => (
+            <PLink key={x.name} to={productHref(style.id, x.name)} className="osw" title={x.name} aria-label={`${style.name} in ${x.name}`} data={`/api/styles/${style.id}`}>
+              <i style={{ background: x.hex }} />
+            </PLink>
+          ))}
+          {others.length > MAX_SW && <PLink to={productHref(style.id, current)} className="osw-more" aria-label={`${others.length - MAX_SW} more colours`}>+{others.length - MAX_SW}</PLink>}
+        </div>
+      )}
     </div>
   );
 }
