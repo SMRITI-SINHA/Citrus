@@ -1150,3 +1150,59 @@ body.sheet-open .toast-host{top:calc(env(safe-area-inset-top,0px) + 12px);bottom
 .cline-t .cpill{min-width:0;max-width:100%}
 .cmore{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .bslot{display:block;min-height:24px}.pcard .pnm{min-height:2.6em}.pcard .pwhy{margin-top:auto}
+
+/* ---------- Smart loader: only on real waits, with a useful line for the store ---------- */
+.sload{display:flex;flex-direction:column;align-items:center;text-align:center;gap:14px;padding:32px 20px;max-width:420px;margin:0 auto}
+.sl-ring{width:52px;height:52px;border-radius:50%;background:var(--surface);box-shadow:0 0 0 1px var(--line),var(--shadow);display:grid;place-items:center}
+.sl-ring i{width:30px;height:30px;border-radius:50%;border:3px solid var(--citrus-soft);border-top-color:var(--citrus);border-right-color:var(--pts-b);animation:slspin .9s linear infinite}
+@keyframes slspin{to{transform:rotate(360deg)}}
+.sl-step{font-size:15px}
+.sl-tip{margin:0;font-size:14.5px;line-height:1.5;color:var(--ink-2);animation:slfade .5s ease;text-wrap:balance}
+.sl-kicker{display:block;font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--pts-ink);margin-bottom:4px}
+@keyframes slfade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.sl-ring i{animation-duration:2.4s}.sl-tip{animation:none}}
+.sload-veil{position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:16px;background:color-mix(in srgb,var(--bg) 82%,transparent);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+.sload-veil .sload{background:var(--surface);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow-lg);padding:32px 26px}
+.navload{position:fixed;left:0;right:0;top:0;z-index:90;pointer-events:none}
+.navbar-prog{display:block;height:3px;background:linear-gradient(90deg,var(--citrus),var(--pts-b));animation:navprog 1.6s ease-out forwards;transform-origin:left}
+@keyframes navprog{from{transform:scaleX(.05)}to{transform:scaleX(.85)}}
+.navload .sload{position:fixed;left:50%;bottom:calc(96px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(92vw,400px);background:var(--surface);border:1px solid var(--line);border-radius:20px;box-shadow:var(--shadow-lg);padding:18px 18px 20px;gap:8px}
+.navload .sl-ring{width:36px;height:36px}.navload .sl-ring i{width:20px;height:20px}
+
+/* ---------- Spacing pass: one scale (4/8/12/16/24/32/48/64), room around every block ---------- */
+:root{--s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;--s8:64px}
+.content{gap:var(--s7);padding-top:var(--s5)}
+@media (min-width:768px){.content{gap:var(--s8);padding-top:var(--s6)}}
+section>.sechead,section .sechead{margin-bottom:var(--s2)}
+.title{margin-bottom:var(--s2)}
+.card{border-radius:18px}
+.stack{gap:var(--s4)}
+
+/* Product tile adapts to its own width: narrow phone tiles drop secondary text instead of squeezing it */
+.ptile{container-type:inline-size;gap:12px}
+.ptile .nm{font-size:15px}
+.ptile .price{font-size:16px}
+@container (max-width:200px){
+  .ptile .cmore{display:none}
+  .ptile .meta{display:none}
+  .ptile .cpill{font-size:12.5px;padding:3px 9px 3px 4px;white-space:nowrap}
+  .ptile .cpill .cdot{width:15px;height:15px}
+  .ptile .sz{font-size:11px;padding:3px 6px}
+  .ptile .addbtn{font-size:13.5px}
+}
+.cpill{white-space:nowrap}
+
+/* Catalogue grid: two roomy columns on phones, more air on larger screens */
+.grid{gap:24px 14px}
+@media (min-width:768px){.grid{gap:32px 24px}}
+
+/* Catalogue header: compact on phones so products start within the first screen */
+.content:has(.catlay){gap:20px}
+@media (max-width:599px){
+  .content:has(.catlay) .title{font-size:26px;margin:0}
+  .content:has(.catlay) .sec-h{align-items:center;gap:10px}
+  .content:has(.catlay) .sec-h .chip{min-height:36px;padding:0 12px;font-size:13px}
+  .content:has(.catlay) .chips .chip{min-height:38px}
+  .content:has(.catlay) .stack{gap:12px}
+}
+@container (max-width:200px){.ptile .nm{-webkit-line-clamp:2;min-height:2.6em;line-height:1.3}}

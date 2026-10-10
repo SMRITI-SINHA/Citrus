@@ -1,5 +1,6 @@
 // The cart is a working order: every size is a typed cell with live stock, edited in place and autosaved.
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SmartLoader } from '../../components/SmartLoader';
 import { useNavigate } from 'react-router';
 import type { Cart, CartLine, Order, StockConflict, StyleCard } from '@citrus/shared';
 import { api, ApiError, uuid } from '../../lib/api';
@@ -194,6 +195,7 @@ export default function CartPage() {
             </div></div>
           )}
           <button type="button" className="btn block" onClick={place} disabled={blocked} aria-busy={!!phase}>{placeLabel}</button>
+          {phase && <SmartLoader context="placing" overlay delay={250} />}
           {overN > 0 && <span className="bad-ink small" style={{ textAlign: 'center' }}>Fix the red {overN === 1 ? 'size' : 'sizes'} above (more than in stock) to place the order.</span>}
           <span className="muted xs" style={{ textAlign: 'center' }}>We check live stock once more before placing. Tapping twice never creates two orders.</span>
         </aside>

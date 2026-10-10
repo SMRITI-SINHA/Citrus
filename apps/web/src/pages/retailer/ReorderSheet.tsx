@@ -1,5 +1,6 @@
 // Reorder preview: checked against live stock, nothing is added until the retailer confirms.
 import { useEffect, useState } from 'react';
+import { SmartLoader } from '../../components/SmartLoader';
 import { useNavigate } from 'react-router';
 import type { Cart } from '@citrus/shared';
 import { api, ApiError } from '../../lib/api';
@@ -59,7 +60,7 @@ export function ReorderSheet({ card, onClose }: { card: ReorderRef | null; onClo
     <Sheet open={!!card} onClose={onClose} label="Reorder" eyebrow={`Reorder · ${card?.number ?? id ?? ''}${card?.placedAt ? ` · ${dmy(card.placedAt)}` : ''}`} title={pv ? `${num(ok)} pcs ready to add` : err ? 'Reorder' : 'Checking live stock…'}>
       <p className="muted small" style={{ marginTop: -10 }}>Checked against live stock just now. Nothing is added until you confirm.</p>
       {err && <ErrorNote error={err} onRetry={load} context={`Reorder ${card?.number ?? ''}`} />}
-      {!pv && !err && <div className="skel card" style={{ height: 220 }} aria-busy="true" />}
+      {!pv && !err && <SmartLoader context="reorder" delay={300} />}
       {pv && (
         <>
           <div className="card" style={{ padding: '4px 14px' }}>

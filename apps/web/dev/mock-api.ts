@@ -259,6 +259,8 @@ export async function handle(req: MockReq, res: MockRes) {
     }
     if (p === '/api/orders' && m === 'POST') {
       const b = await body(req);
+      // Placing an order is a real wait in production (live stock check + ERP hold), so the demo keeps one here.
+      if (typeof window !== 'undefined') await new Promise(r => setTimeout(r, 2200));
       const dup = orders.find(o => (o as any).key === b.idempotencyKey); if (dup) return send(res, 201, dup);
       if (b.cartVersion !== cart.version) return err(res, 409, 'CART_CHANGED', 'Your cart was changed on another device.', { cart });
       if (failNext && cart.lines.length) {

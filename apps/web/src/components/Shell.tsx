@@ -1,6 +1,7 @@
 // One adaptive shell per role. Phone: app bar + bottom tab bar (+ mini cart). ≥768px: quiet side rail + wide canvas.
 import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
-import { useLocation, useNavigate, useNavigationType } from 'react-router';
+import { useLocation, useNavigate, useNavigation, useNavigationType } from 'react-router';
+import { SmartLoader } from './SmartLoader';
 import type { AdminOverview, Me } from '@citrus/shared';
 import { useQuery } from '../lib/query';
 import { useMyOrders, useQueue } from '../state/orders';
@@ -93,6 +94,7 @@ function Frame({ nav, header, foot, children, after }: { nav: NavItem[]; header:
   const { pathname } = useLocation();
   const online = useOnline();
   const scrolled = useScrolled();
+  const navLoading = useNavigation().state === 'loading';
   const isCur = (n: NavItem) => n.match.test(pathname);
   return (
     <div className="shell">
@@ -117,6 +119,7 @@ function Frame({ nav, header, foot, children, after }: { nav: NavItem[]; header:
           </PLink>
         ))}
       </nav>
+      {navLoading && <div className="navload"><i className="navbar-prog" /><SmartLoader delay={700} /></div>}
       {after}
     </div>
   );
