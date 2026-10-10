@@ -1653,3 +1653,14 @@ a.cpill{text-decoration:none}
 .best-sz .low b,.best-sz .low small{color:var(--low-ink)!important}
 .sz.low{background:var(--low-fill);color:var(--low-ink);box-shadow:inset 0 0 0 1.5px var(--low-line)}
 .best-note.low{color:var(--low-ink)}
+/* round 15g: in stock vs sold out must differ at a glance.
+   in stock = solid white chip, firm outline, dark bold text. sold out = no fill, dashed outline, faded text. */
+.sz{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:inset 0 0 0 1.25px color-mix(in srgb,var(--ink) 28%,transparent)}
+.sz.out,.best-sz .out{background:transparent;box-shadow:none;border:1.25px dashed color-mix(in srgb,var(--muted) 55%,transparent)}
+.sz.out{color:color-mix(in srgb,var(--muted) 60%,transparent);font-weight:500}
+.best-sz .out b,.best-sz .out small{color:color-mix(in srgb,var(--muted) 60%,transparent)!important}
+.best-sz span:not(.out):not(.low){border:1.25px solid color-mix(in srgb,var(--ink) 22%,transparent)}
+
+/* Round 15h: best-seller notes all start on the same line, whether they wrap to two lines or not */
+.best-note,.best-note.ok,.best-note.low{align-items:flex-start;line-height:1.4;min-height:calc(2 * 1.4em)}
+.best-note svg{flex:none;margin-top:2px}
