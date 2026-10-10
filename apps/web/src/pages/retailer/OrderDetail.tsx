@@ -64,6 +64,18 @@ export default function OrderDetail() {
         <StatusBadge status={o.status} />
       </div>
 
+      {o.status !== 'modified' && !!o.changes?.length && o.events.some(e => e.type === 'accepted') && (
+        <div className="card agreed">
+          <div className="eyebrow"><Icon name="check" size={14} /> Changes you accepted from {o.distributorName}</div>
+          {o.changeReason && <div className="muted" style={{ fontSize: 13 }}>Reason: {o.changeReason}</div>}
+          {o.changes.map(c => (
+            <div key={`${c.styleId}|${c.color}|${c.size}`} className="diff">
+              <span><b>{nameOf(c.styleId)}</b><span className="muted"> · {c.color} · {c.size}</span></span>
+              <span className="num"><s>{c.from}</s> → <b>{c.to}</b></span>
+            </div>
+          ))}
+        </div>
+      )}
       {o.status === 'modified' && o.changes && (
         <div className="card modcard" role="alert">
           <div className="eyebrow" style={{ color: 'var(--warn)' }}><Icon name="edit" size={14} /> Changes suggested by {o.distributorName}</div>

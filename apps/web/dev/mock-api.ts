@@ -109,6 +109,20 @@ const session = (phone: string, _res: MockRes) => {
   return { s: { accessToken: at, expiresIn: 900, me: users[phone] }, h: { 'set-cookie': `ct_refresh=${rt}; HttpOnly; Path=/api/auth; SameSite=Lax` } };
 };
 const avail = (l: { styleId: string; color: string; size: string }) => stock[`${l.styleId}|${l.color}|${l.size}`] ?? 0;
+// Order history entries and totals, kept the same way the real API keeps them.
+const log = (o: Order, type: string, actor: Order['events'][number]['actor'], message: string) => { const at = new Date().toISOString(); o.events.push({ at, type, actor, message }); o.updatedAt = at; };
+const retotal = (o: Order) => { o.totalQty = o.lines.reduce((a, l) => a + l.qty, 0); o.totalValue = o.lines.reduce((a, l) => a + l.qty * l.rate, 0); o.totalPoints = o.lines.reduce((a, l) => a + l.qty * l.points, 0); };
+const release = (lines: { styleId: string; color: string; size: string; qty: number }[]) => { for (const l of lines) stock[`${l.styleId}|${l.color}|${l.size}`] = (stock[`${l.styleId}|${l.color}|${l.size}`] ?? 0) + l.qty; };
+let soSeq = 4821;
+// Approval goes on to Ginesys: the sales order is created a moment later, as it is in production.
+const confirmSoon = (o: Order) => setTimeout(() => {
+  if (o.status !== 'approved') return;
+  o.status = 'confirmed'; o.erp.soNumber = `SO/KL/26-27/0${soSeq++}`;
+  log(o, 'confirmed', 'erp', `CITRUS order created in Ginesys (${o.erp.soNumber}). Packing starts next.`);
+  push({ type: 'order.updated', order: o });
+}, 1500);
+const sizeList = (cs: { name?: string; styleId: string; color: string; size: string; from: number; to: number }[]) =>
+  cs.map(c => `${byId.get(c.styleId)?.name ?? c.styleId} ${c.color} ${c.size}: ${c.from} → ${c.to}`).join('; ');
 const bump = () => { cart = { ...cart, updatedAt: new Date().toISOString(), version: cart.version + 1 }; };
 
 // What this store buys, for Complete the look: styles it has ordered and how many pieces of each trouser/shirt type.
@@ -121,6 +135,18 @@ const lookCtx = (): LookCtx => {
   }
   return { stockOf: tot, bought, boughtKinds };
 };
+
+// One decision path for the distributor and for CITRUS deciding on their behalf, each written to the order's history.
+function decide(o: Order, b: any, actor: 'distributor' | 'admin', name: string) {
+  const by = actor === 'admin' ? `CITRUS (${name}) for ${o.distributorName}` : o.distributorName;
+  if (b.action === 'approve') { o.status = 'approved'; log(o, 'approved', actor, `Approved by ${by}.`); confirmSoon(o); }
+  else if (b.action === 'reject') { o.status = 'rejected'; o.reason = b.reason; release(o.lines); log(o, 'rejected', actor, `Rejected by ${by}: ${b.reason}`); }
+  else {
+    o.changes = b.lines.map((l: any) => ({ ...l, from: o.lines.find(x => x.styleId === l.styleId && x.color === l.color && x.size === l.size)!.qty, to: l.qty })).filter((c: any) => c.from !== c.to);
+    o.changeReason = b.reason; o.status = 'modified';
+    log(o, 'modified', actor, `${by} proposed changes (${sizeList(o.changes!)}). Reason: ${b.reason}. Waiting for the store to accept.`);
+  }
+}
 
 export async function handle(req: MockReq, res: MockRes) {
   const url = new URL(req.url!, 'http://x');
@@ -326,22 +352,40 @@ export async function handle(req: MockReq, res: MockRes) {
     if (p === '/api/orders') return send(res, 200, { items: orders.filter(o => o.retailerId === 'r1') });
     const od = p.match(/^\/api\/orders\/([^/]+)(\/changes)?$/);
     if (od) {
-      const o = orders.find(x => x.id === od[1]) ?? queue.find(x => x.id === od[1]); if (!o) return err(res, 404, 'NOT_FOUND', 'Order not found');
-      if (od[2]) { const b = await body(req); o.status = b.action === 'accept' ? 'approved' : 'cancelled'; push({ type: 'order.updated', order: o }); }
+      const o = orders.find(x => x.id === od[1]) ?? queue.find(x => x.id === od[1]);
+      // A store sees and answers only its own orders.
+      if (!o || (me.role === 'retailer' && o.retailerId !== 'r1')) return err(res, 404, 'NOT_FOUND', 'Order not found');
+      if (od[2]) {
+        if (me.role !== 'retailer') return err(res, 403, 'FORBIDDEN', 'Only the store can answer changes.');
+        if (o.status !== 'modified' || !o.changes) return err(res, 409, 'NOT_WAITING', `This order is ${o.status}; there are no changes to answer.`, { order: o });
+        const b = await body(req);
+        if (b.action === 'accept') {
+          // Apply the distributor's quantities, hand back the pieces they removed, then the order carries on to CITRUS.
+          const freed: { styleId: string; color: string; size: string; qty: number }[] = [];
+          for (const c of o.changes) { const l = o.lines.find(x => x.styleId === c.styleId && x.color === c.color && x.size === c.size); if (l) { freed.push({ ...c, qty: l.qty - c.to }); l.qty = c.to; } }
+          o.lines = o.lines.filter(l => l.qty > 0); retotal(o); release(freed);
+          log(o, 'accepted', 'retailer', `${me.retailer?.store ?? 'The store'} accepted the changes. New total ${o.totalQty} pcs.`);
+          o.status = 'approved'; log(o, 'approved', 'system', 'Approved with the agreed changes. Sending to CITRUS.');
+          confirmSoon(o);
+        } else {
+          o.status = 'cancelled'; o.reason = 'You declined the distributor\'s changes.'; release(o.lines);
+          log(o, 'cancelled', 'retailer', `${me.retailer?.store ?? 'The store'} declined the changes. Order cancelled and stock released.`);
+        }
+        push({ type: 'order.updated', order: o });
+      }
       return send(res, 200, o);
     }
     // distributor
     if (p === '/api/distributor/queue') return send(res, 200, { items: queue.filter(o => ['placed', 'review', 'modified', 'approved'].includes(o.status)) });
     if (p === '/api/distributor/history') return send(res, 200, { items: queue.filter(o => !['placed', 'review', 'modified'].includes(o.status)) });
-    if (p.match(/^\/api\/distributor\/retailers\/[^/]+$/)) return send(res, 200, { id: p.split('/').pop(), phone: '9847038812', credit: { limit: 300000, outstanding: 112400, overdue: 0, source: 'Ginesys customer master' }, stats: { orders90d: 6, avgOrderValue: 38400, rejected90d: 0 } });
+    if (p.match(/^\/api\/distributor\/retailers\/[^/]+$/)) return send(res, 200, { id: p.split('/').pop(), phone: '9847038812', credit: { limit: 300000, outstanding: 112400, overdue: 0, source: 'Sample figures. Live from Ginesys once connected' }, stats: { orders90d: 6, avgOrderValue: 38400, rejected90d: 0 } });
     const dd = p.match(/^\/api\/distributor\/orders\/([^/]+)\/decision$/);
     if (dd) {
+      if (me.role !== 'distributor') return err(res, 403, 'FORBIDDEN', 'Only the distributor can decide this order.');
       const o = queue.find(x => x.id === dd[1]); if (!o) return err(res, 404, 'NOT_FOUND', 'Order not found');
       if (o.status !== 'review') return err(res, 409, 'ALREADY_DECIDED', `This order is already ${o.status}.`, { order: o });
       const b = await body(req);
-      if (b.action === 'approve') { o.status = 'approved'; setTimeout(() => { o.status = 'confirmed'; o.erp.soNumber = 'SO/KL/26-27/04821'; push({ type: 'order.updated', order: o }); }, 1500); }
-      else if (b.action === 'reject') { o.status = 'rejected'; o.reason = b.reason; }
-      else { o.changes = b.lines.map((l: any) => ({ ...l, from: o.lines.find(x => x.styleId === l.styleId && x.color === l.color && x.size === l.size)!.qty, to: l.qty })).filter((c: any) => c.from !== c.to); o.changeReason = b.reason; o.status = 'modified'; }
+      decide(o, b, 'distributor', me.name);
       push({ type: 'order.updated', order: o }); return send(res, 200, o);
     }
     // admin
@@ -364,6 +408,42 @@ export async function handle(req: MockReq, res: MockRes) {
       const items = all.filter(o => (!q || `${o.number} ${o.store} ${o.erp.soNumber ?? ''}`.toLowerCase().includes(q)) && (!st || (st === 'attention' ? o.erp.state === 'failed' || o.status === 'review' : o.status === st)));
       return send(res, 200, { items: items.slice(0, 25), nextCursor: null });
     }
+    const ao = p.match(/^\/api\/admin\/orders\/([^/]+)(\/decision)?$/);
+    if (ao && me.role === 'admin') {
+      const o = [...queue, ...orders].find(x => x.id === decodeURIComponent(ao[1])); if (!o) return err(res, 404, 'NOT_FOUND', 'Order not found');
+      if (ao[2] && m === 'POST') {
+        if (o.status !== 'review') return err(res, 409, 'ALREADY_DECIDED', `This order is already ${o.status}.`, { order: o });
+        decide(o, await body(req), 'admin', me.name); push({ type: 'order.updated', order: o }); return send(res, 200, o);
+      }
+      // What CITRUS support needs on one screen: the order, every call to Ginesys, and every message sent about it.
+      const t = (ago: number) => new Date(new Date(o.placedAt).getTime() + ago * 60_000).toISOString();
+      const integration = [{ topic: 'Create sales order with stock hold', status: 'done', attempts: 1, created_at: t(0), done_at: t(0.1), request_id: `gds-${o.number.slice(3)}-1` }];
+      if (o.erp.soNumber) integration.push({ topic: 'Authorise sales order', status: 'done', attempts: 1, created_at: t(1), done_at: t(1.1), request_id: `gds-${o.number.slice(3)}-2` });
+      if (o.erp.state === 'failed') integration.push({ topic: 'Authorise sales order', status: 'failed', attempts: 3, last_error: o.erp.lastError ?? 'Ginesys timeout', created_at: t(1), done_at: null, request_id: null } as any);
+      const notifications = [{ channel: 'WhatsApp', template: 'new_order_for_distributor', status: 'delivered', created_at: t(0.2), to_phone: DIST.phone }, { channel: 'SMS', template: 'order_received', status: 'delivered', created_at: t(0.2), to_phone: RETAILERS.find(r => r.store === o.store)?.phone ?? RET.phone }];
+      return send(res, 200, { order: o, integration, notifications });
+    }
+    if (p === '/api/admin/distributors') {
+      const all = [...new Map([...queue, ...orders].map(o => [o.id, o])).values()];
+      return send(res, 200, DISTRIBUTORS.slice(0, 40).map((d, i) => {
+        const mine = all.filter(o => o.distributorId === d.id);
+        return { id: d.id, name: d.name, city: d.city, state: d.state, orders30d: mine.length || 18 + (i * 7) % 40, waiting: mine.filter(o => o.status === 'review').length || i % 4,
+          rejected30d: mine.filter(o => o.status === 'rejected').length || i % 3, avgDecisionHours: Math.round((1.2 + (i * 0.7) % 5) * 10) / 10, withinSlaPct: Math.max(61, 98 - (i * 5) % 37), overrides30d: i % 5 === 0 ? 2 : 0 };
+      }));
+    }
+    if (p === '/api/admin/retailers') {
+      const q = (url.searchParams.get('q') ?? '').toLowerCase(), region = url.searchParams.get('region') ?? '', act = url.searchParams.get('activated') ?? '';
+      const rows = RETAILERS.map((r, i) => {
+        const mine = [...queue, ...orders].filter(o => o.store === r.store);
+        const activated = r.phone === RET.phone || i % 7 !== 3;
+        return { id: i === 0 ? 'r1' : `r${i + 1}`, code: r.code, store: r.store, city: r.city, state: r.state, distributor: DISTRIBUTORS.find(d => d.id === r.distributor)?.name ?? '',
+          activated, activatedAt: activated ? new Date(Date.now() - (i % 30 + 1) * 86_400_000).toISOString() : undefined, points: i === 0 ? (users[RET.phone].points ?? 0) : (i * 137) % 2400,
+          invite: activated ? undefined : r.invite, orders: mine.length || (activated ? (i * 3) % 14 : 0), lastOrderAt: mine[0]?.placedAt };
+      }).filter(r => (!q || `${r.store} ${r.code} ${r.city}`.toLowerCase().includes(q)) && (!region || r.state === region) && (!act || String(r.activated) === act));
+      const start = Number(url.searchParams.get('cursor') ?? 0);
+      return send(res, 200, { items: rows.slice(start, start + 30), nextCursor: start + 30 < rows.length ? String(start + 30) : null });
+    }
+    if (p.match(/^\/api\/admin\/retailers\/[^/]+\/phone$/)) return send(res, 200, { ok: true });
     const rx = p.match(/^\/api\/admin\/exceptions\/([^/]+)\/resolve$/);
     if (rx) { resolved.add(rx[1]); return send(res, 200, { ok: true }); }
     if (p === '/api/admin/assumptions') return send(res, 200, ASSUMPTIONS);
