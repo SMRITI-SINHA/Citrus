@@ -11,8 +11,9 @@ import { seedStyles, spec } from '../../state/catalogue';
 import { isOpen, nextStep, useMyOrders } from '../../state/orders';
 import type { Order } from '@citrus/shared';
 import { useRef } from 'react';
-import { BrandArt, Garment, linePhoto, photoUrl } from '../../components/Garment';
-import { RewardCards } from '../../components/RewardCards';
+import { Garment, linePhoto, photoUrl } from '../../components/Garment';
+import { RewardCards, RewardPic } from '../../components/RewardCards';
+import { REWARD_TIERS } from '@citrus/shared';
 import type { CataloguePage } from '../../lib/types';
 import { Icon } from '../../components/Icon';
 import { PLink } from '../../components/PLink';
@@ -64,9 +65,8 @@ export default function Home() {
               {lastOrder && <PLink to="/catalogue" className="btn light">{t('browse')}</PLink>}
             </div>
           </div>
-          <div className="art" aria-hidden="true">
-            <BrandArt />
-          </div>
+          <img className="hero-model" src={photoUrl('look/home-about-1.webp')} alt="" aria-hidden="true" decoding="async" />
+          <HeroRewards points={points} />
         </section>
       </div>
 
@@ -166,6 +166,26 @@ interface ShelfTile { key: string; label: string; n: number; full: number; cover
 // One clear CITRUS photo per shelf, so every circle shows a different garment.
 const SHELF_PHOTO: Record<string, string> = { 'formal-shirts': 'g/ampm-shirt.webp', 'casual-shirts': 'g/casual-shirt.webp', chinos: 'g/cotton-trouser.webp', 'formal-trousers': 'g/formalpant-trouser.webp', polos: 'g/shorts-polo.webp', tees: 'g/cargo-tee.webp' };
 // The shelves a store restocks by. One tap opens that shelf, in-stock styles first.
+// The prizes the store is playing for, drifting along the bottom of the hero so they are seen before anything else.
+function HeroRewards({ points }: { points: number }) {
+  const items = REWARD_TIERS; void points;
+  return (
+    <PLink to="/rewards" className="hrw" aria-label="See rewards you can win">
+      <span className="hrw-lab"><Icon name="gift" size={14} />Win with every order</span>
+      <span className="hrw-win" aria-hidden="true">
+        <span className="hrw-run">
+          {[0, 1].map(c => items.map((r, i) => (
+            <span key={`${c}-${r.at}`} className="hrw-it" style={{ ['--d' as string]: `${i * 1.1}s` }}>
+              <RewardPic at={r.at} name={r.name} />
+              <span className="hrw-tx"><b>{r.name}</b><span className="hrw-pts num">{num(r.at)} pts</span></span>
+            </span>
+          )))}
+        </span>
+      </span>
+    </PLink>
+  );
+}
+
 function Shelves() {
   const { data } = useQuery<ShelfTile[]>('/api/shelves', { staleMs: 120_000 });
   if (!data) return null;
@@ -248,7 +268,7 @@ function BestCard({ b, onRestock }: { b: BestSeller; onRestock: () => void }) {
       <PLink to={productHref(s.id, b.color)} className="best-top" data={`/api/styles/${s.id}`}>
         <span className="best-im"><Garment swatch={false} spec={spec(s, b.color)} /></span>
         <span className="best-id">
-          <span className={`best-rank t${Math.min(b.orders, 4)}`}><Icon name="refresh" size={12} />Ordered {b.orders} times</span>
+          <span className="best-rank"><Icon name="refresh" size={12} />Ordered {b.orders} times</span>
           <b>{s.name}</b>
           <span className="muted small"><span className="mono">{s.id}</span> · {b.color}</span>
           <span className="small"><b className="num">{inr(tradeRate(s))}</b><span className="muted">/pc</span></span>
@@ -257,7 +277,7 @@ function BestCard({ b, onRestock }: { b: BestSeller; onRestock: () => void }) {
       <div className="best-sz" aria-label="Your usual sizes and today's stock">
         {sizes.map(z => { const a = avail(s, b.color, z), u = b.usual[z]; return <span key={z} className={a === 0 ? 'out' : a < u ? 'low' : 'ok'}><b>{z}</b><small>{a === 0 ? 'out' : a < u ? `${a} left` : `${u} usual`}</small></span>; })}
       </div>
-      <span className={`best-note ${short ? 'low' : 'ok'}`}><Icon name={short ? 'alert' : 'check'} size={14} />{short ? `${short} size${short > 1 ? 's' : ''} short today. You can adjust before adding` : 'All your usual sizes are in stock'}</span>
+      <span className={`best-note ${short ? 'low' : 'ok'}`}><Icon name={short ? 'alert' : 'check'} size={14} />{short ? `${short} size${short > 1 ? 's' : ''} short today, adjust when you restock` : 'All your usual sizes are in stock'}</span>
       <button type="button" className="btn sec" onClick={onRestock}>Choose sizes and restock</button>
     </div>
   );

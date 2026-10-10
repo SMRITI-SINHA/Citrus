@@ -66,8 +66,8 @@ for (const o of orders) if (!o.collection) o.collection = 'NOS';
     for (const l of o!.lines) if (`${l.styleId}|${l.color}` === k && (!sizes || sizes.includes(l.size))) stock[`${k}|${l.size}`] = 0;
   };
   for (const l of mine[0]?.lines ?? []) stock[`${l.styleId}|${l.color}|${l.size}`] = Math.max(stock[`${l.styleId}|${l.color}|${l.size}`] ?? 0, l.qty + 6);
-  zero(mine[1], 0, ['40', '42', '44', 'L', 'XL', 'XXL', '36', '38']);
-  zero(mine[2], 0); zero(mine[2], 1, ['40', '42', 'L', 'XL', '34', '36']);
+  zero(mine[1], 0, ['L', 'XL', 'XXL']);
+  zero(mine[2], 0); zero(mine[2], 1, ['L', 'XL']);
 }
 // Orders still on their way, one at each stage, so the Orders tab can be filtered by status.
 const step = (o: Order, plan: [string, number, string][]) => { for (const [type, ago, message] of plan) o.events.push({ at: new Date(Date.now() - ago * 60_000).toISOString(), type, actor: type === 'approved' ? 'distributor' : 'erp', message }); o.updatedAt = o.events[o.events.length - 1].at; return o; };

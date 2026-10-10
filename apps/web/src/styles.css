@@ -1475,3 +1475,86 @@ a.cpill{text-decoration:none}
 .best-rank.t4{--t:#7A5CF0;--t-ink:#4B2FB8}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .best-rank{--t-ink:color-mix(in srgb,var(--t) 55%,#fff);background:color-mix(in srgb,var(--t) 18%,rgba(30,32,40,.6));box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}}
 :root[data-theme="dark"] .best-rank{--t-ink:color-mix(in srgb,var(--t) 55%,#fff);background:color-mix(in srgb,var(--t) 18%,rgba(30,32,40,.6));box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+
+/* round 14: brighter, branded accents with one job per colour.
+   aqua = your history (ordered N times, hero), hot rose = only a few left (order now),
+   hatched + struck = sold out (reads at a glance, no words needed), green = all good. */
+:root{--aqua:#14C8D4;--aqua-ink:#08707A;--aqua-grad:linear-gradient(135deg,#5EEAD4,#38D3F5 55%,#7AA8FF);
+  --hot:linear-gradient(135deg,#FF2E63,#FF5F8F);--hot-ink:#E11D48;--hot-glow:rgba(255,46,99,.45);
+  --ring:conic-gradient(from 200deg,#FFC21A,#FF5E62,#E040FB,#4F7BFF,#22D3EE,#FFC21A)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--aqua-ink:#7CE7EF;--hot-ink:#FF7A9C}}
+:root[data-theme="dark"]{--aqua-ink:#7CE7EF;--hot-ink:#FF7A9C}
+
+/* Ordered N times: frosted aqua */
+.best-rank,.best-rank.t3,.best-rank.t4{--t:var(--aqua);--t-ink:var(--aqua-ink)}
+
+/* sizes: one row, same place on every card */
+.best-sz{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.best-sz span{min-width:0;padding:7px 2px;background:var(--surface);border-color:var(--line)}
+.best-sz .low{background:var(--hot);border-color:transparent;color:#fff;box-shadow:0 8px 16px -10px var(--hot-glow);animation:hotpulse 2.4s ease-in-out infinite}
+.best-sz .low b,.best-sz .low small{color:#fff!important;font-weight:700}
+@keyframes hotpulse{0%,100%{box-shadow:0 8px 16px -10px var(--hot-glow)}50%{box-shadow:0 8px 22px -6px var(--hot-glow)}}
+@media (prefers-reduced-motion:reduce){.best-sz .low{animation:none}}
+/* sold out: hatched, faded, struck through */
+.best-sz .out,.sz.out{position:relative;opacity:1;color:var(--muted);border-color:var(--line);
+  background:repeating-linear-gradient(135deg,var(--surface-2) 0 5px,transparent 5px 10px),var(--surface)}
+.best-sz .out b{text-decoration:line-through;text-decoration-thickness:2px;color:var(--muted)}
+.best-sz .out small{color:var(--muted)!important;font-weight:500}
+.best-sz .out::after{content:"";position:absolute;left:8%;right:8%;top:50%;height:1.5px;background:color-mix(in srgb,var(--muted) 70%,transparent);transform:rotate(-24deg)}
+.best-sz span{position:relative;overflow:hidden}
+/* note: plain line, no extra coloured box */
+.best-note,.best-note.ok,.best-note.low{background:none;padding:0;font-size:12.5px;margin-top:auto}
+.best-note.ok{color:var(--ok)}
+.best-note.low{color:var(--hot-ink)}
+.best .btn{margin-top:0}
+
+/* tiles: low = hot rose, out = hatched; note + button pinned to the bottom so cards line up */
+.sz.low{background:var(--hot);color:#fff;box-shadow:none;font-weight:700}
+.sz.out{text-decoration:line-through;text-decoration-thickness:1.5px}
+.ptile .why{margin-top:auto}
+.ptile .why+.addbtn{margin-top:0}
+
+/* shelf circles: bright story-style ring */
+.mq .shelf .sc{padding:3px;background:var(--ring);box-shadow:0 10px 24px -14px rgba(224,64,251,.55)}
+.mq .shelf .sc .ph{inset:3px;border-radius:50%;box-shadow:0 0 0 2.5px var(--bg)}
+.mq .shelf:hover .sc{box-shadow:0 14px 28px -12px rgba(224,64,251,.7);transform:translateY(-2px)}
+
+/* hero: aqua accents on navy, model photo melts into the gradient, prizes drift along the bottom */
+.hero-c{display:grid;grid-template-rows:1fr auto}
+.hero-c .art{display:none!important}
+.hero-model{position:absolute;right:0;top:0;height:100%;width:min(38%,420px);object-fit:cover;object-position:50% 20%;pointer-events:none;
+  -webkit-mask-image:linear-gradient(90deg,transparent 0%,#000 45%),linear-gradient(0deg,transparent 0,#000 30%);-webkit-mask-composite:source-in;
+  mask-image:linear-gradient(90deg,transparent 0%,#000 45%),linear-gradient(0deg,transparent 0,#000 30%);mask-composite:intersect;opacity:.92}
+.hero-hi .hi b{color:transparent;background:var(--aqua-grad);-webkit-background-clip:text;background-clip:text}
+.hero-c h1 em{color:transparent;background:var(--aqua-grad);-webkit-background-clip:text;background-clip:text}
+.nospill{background:rgba(255,255,255,.1);color:#E6FBFF;box-shadow:inset 0 0 0 1px rgba(125,231,239,.45);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.nospill svg{color:#5EEAD4}
+.hero-c .btn.citrus,.hero-c .hero-search .search button,.hero-c .hero-search button[type="submit"]{background:var(--aqua-grad);color:#0B1B34;border-color:transparent;box-shadow:0 10px 24px -12px rgba(56,211,245,.8)}
+.hero-c .btn.light{background:rgba(255,255,255,.12);color:#fff;border:1px solid rgba(255,255,255,.28);backdrop-filter:blur(8px)}
+
+.hrw{position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin:0 16px 14px;padding:8px 10px 8px 14px;border-radius:16px;text-decoration:none;color:#fff;
+  background:linear-gradient(90deg,rgba(255,255,255,.12),rgba(255,255,255,.05));box-shadow:inset 0 0 0 1px rgba(255,255,255,.14);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.hrw-lab{flex:none;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:#FFE38A}
+.hrw-win{flex:1;min-width:0;overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent);mask-image:linear-gradient(90deg,transparent,#000 6%,#000 94%,transparent)}
+.hrw-run{display:flex;gap:12px;width:max-content;animation:hrw-ltr 36s linear infinite}
+.hrw:hover .hrw-run{animation-play-state:running}
+@keyframes hrw-ltr{from{transform:translateX(-50%)}to{transform:translateX(0)}}
+.hrw-it{display:flex;align-items:center;gap:10px;padding:5px 12px 5px 5px;border-radius:12px;background:rgba(255,255,255,.08);white-space:nowrap}
+.hrw-it .rpic{width:44px;height:44px;aspect-ratio:1;margin:0;border-radius:10px;flex:none;animation:hrw-zoom 4.4s ease-in-out infinite;animation-delay:var(--d)}
+.hrw-it .rpic.cnote .cn-card{transform:scale(.32);transform-origin:center}
+.hrw-it .rpic.cnote .cn-sub,.hrw-it .rpic.cnote .cn-brand{display:none}
+@keyframes hrw-zoom{0%,70%,100%{transform:scale(1)}80%{transform:scale(1.12);box-shadow:0 0 0 2px #FFE38A,0 0 18px rgba(255,227,138,.6)}}
+.hrw-tx{display:flex;flex-direction:column;line-height:1.2}
+.hrw-tx b{font-size:13px;font-weight:650}
+.hrw-pts{align-self:flex-start;margin-top:3px;font-size:11.5px;font-weight:800;padding:2px 8px;border-radius:999px;color:#2A1600;
+  background:linear-gradient(110deg,#FFD25A 0%,#FFF2B8 45%,#FFD25A 60%);background-size:220% 100%;animation:hrw-shine 3.2s linear infinite}
+@keyframes hrw-shine{from{background-position:120% 0}to{background-position:-100% 0}}
+.hrw-it small{font-size:11px;color:rgba(255,255,255,.7)}
+@media (prefers-reduced-motion:reduce){.hrw-run,.hrw-it .rpic,.hrw-pts{animation:none}}
+@media (max-width:767px){.hero-model{width:44%;opacity:.55}.hrw{margin:0 12px 12px;padding:6px 8px}.hrw-lab span,.hrw-lab{font-size:0;gap:0}.hrw-lab svg{width:18px;height:18px;color:#FFE38A}.hrw-it small{display:none}}
+/* round 14b: keep the hero compact so products stay above the fold */
+@media (min-width:768px){.hero-c .copy{padding:18px 36px 12px!important;gap:10px}.hero-c h1{font-size:clamp(24px,2.6vw,32px)!important}}
+.hrw-it .rpic{width:40px;height:40px}
+.hrw-it .rpic.cnote .cn-card{display:none}
+.hrw-it .rpic.cnote::after{content:"₹4K";font-weight:800;font-size:12.5px;color:#065F46}
+@media (max-width:767px){.hero-model{display:none}}

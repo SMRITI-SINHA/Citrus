@@ -74,7 +74,7 @@ export const COMING_SOON = [
 ];
 
 const SIZES: Record<Category, string[]> = {
-  Shirts: ['S', 'M', 'L', 'XL', 'XXL'], 'T-shirts': ['S', 'M', 'L', 'XL', 'XXL'], Trousers: ['30', '32', '34', '36', '38'],
+  Shirts: ['S', 'M', 'L', 'XL', 'XXL'], 'T-shirts': ['S', 'M', 'L', 'XL', 'XXL'], Trousers: ['S', 'M', 'L', 'XL', 'XXL'],
 };
 
 function rng(seed: number) { let a = seed; return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }

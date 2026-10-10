@@ -40,7 +40,7 @@ export function retailerLabel(s: OrderStatus): string {
 export const SIZES: Record<Category, string[]> = {
   Shirts: ['S', 'M', 'L', 'XL', 'XXL'],
   'T-shirts': ['S', 'M', 'L', 'XL', 'XXL'],
-  Trousers: ['30', '32', '34', '36', '38'],
+  Trousers: ['S', 'M', 'L', 'XL', 'XXL'],
 };
 /** Default size ratio used by "split a total". Best-practice default, configurable per retailer later. */
 export const DEFAULT_RATIO: Record<Category, number[]> = {

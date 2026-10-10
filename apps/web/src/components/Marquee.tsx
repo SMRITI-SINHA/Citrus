@@ -1,6 +1,6 @@
 // A row that drifts right to left on its own, like a shop window, and never gets in the way:
-// it stops while you hover, touch, swipe or focus it, has arrows on either side to move it yourself,
-// and picks up again on its own a few seconds after you let go.
+// it keeps moving while you scroll or point at it, stops only while a finger is dragging it, has arrows
+// on either side to move it yourself, and picks up again on its own a moment after you let go.
 import { Children, useEffect, useRef, type ReactNode } from 'react';
 import { Icon } from './Icon';
 
@@ -34,7 +34,7 @@ export function Marquee({ children, label }: { children: ReactNode; label: strin
     return () => cancelAnimationFrame(raf);
   }, [reduce]);
 
-  const nudge = () => { idleUntil.current = performance.now() + 3500; };
+  const nudge = () => { idleUntil.current = performance.now() + 1500; };
   const go = (d: number) => {
     const el = ref.current; if (!el) return;
     nudge();
@@ -45,10 +45,7 @@ export function Marquee({ children, label }: { children: ReactNode; label: strin
   return (
     <div className="mq">
       <div ref={ref} className="mq-track" role="region" aria-label={label}
-        onPointerEnter={e => { if (e.pointerType === 'mouse') hold.current = true; }}
-        onPointerLeave={e => { if (e.pointerType === 'mouse') { hold.current = false; nudge(); } }}
-        onTouchStart={() => { hold.current = true; }} onTouchEnd={() => { hold.current = false; nudge(); }}
-        onWheel={nudge} onFocus={() => { hold.current = true; }} onBlur={() => { hold.current = false; nudge(); }}>
+        onTouchStart={() => { hold.current = true; }} onTouchEnd={() => { hold.current = false; nudge(); }}>
         {[0, 1, 2].map(copy => items.map((it, i) => (
           <div key={`${copy}-${i}`} className="mq-item" data-mq-item aria-hidden={copy !== 1 || undefined} inert={copy !== 1 ? true : undefined}>{it}</div>
         )))}
