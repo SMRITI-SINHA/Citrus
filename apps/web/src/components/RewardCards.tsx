@@ -21,15 +21,37 @@ export function RewardPic({ at, name }: { at: number; name: string }) {
   const a = rewardArt(at);
   const [bad, setBad] = useState(false);
   if (at === 4000) return (
-    <span className="rpic cnote" style={{ background: a.tint }} role="img" aria-label={name}>
-      <span className="cn-card"><span className="cn-brand">CITRUS · Credit note</span><b className="num">₹4,000</b><span className="cn-sub">Off your next order</span></span>
-    </span>
+    <span className="rpic cnote" style={{ background: a.tint }} role="img" aria-label={name}><VoucherArt /></span>
   );
   return (
     <span className="rpic" style={{ background: a.tint }}>
       {!bad && <img src={BASE + a.file} alt={name} loading="lazy" decoding="async" onError={() => setBad(true)} />}
       {bad && <Icon name="gift" size={34} />}
     </span>
+  );
+}
+
+/** The ₹4,000 credit note drawn as the real thing: a gift voucher with a ribbon, cash fanned behind it. */
+function VoucherArt() {
+  return (
+    <svg className="voucher" viewBox="0 0 160 120" aria-hidden="true">
+      <defs>
+        <linearGradient id="vc-card" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#1B2A55" /><stop offset="1" stopColor="#3B4FA8" /></linearGradient>
+        <linearGradient id="vc-gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#FFE08A" /><stop offset=".5" stopColor="#F5B82E" /><stop offset="1" stopColor="#D98E04" /></linearGradient>
+        <linearGradient id="vc-note" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="#7FD8A8" /><stop offset="1" stopColor="#2E9E6B" /></linearGradient>
+        <mask id="vc-cut"><rect width="160" height="120" fill="#fff" /><circle cx="22" cy="68" r="7" fill="#000" /><circle cx="138" cy="68" r="7" fill="#000" /></mask>
+      </defs>
+      <g transform="rotate(-14 80 60)"><rect x="34" y="18" width="96" height="50" rx="6" fill="url(#vc-note)" /><rect x="40" y="24" width="84" height="38" rx="4" fill="none" stroke="#E8FFF2" strokeOpacity=".7" /><circle cx="82" cy="43" r="10" fill="#E8FFF2" fillOpacity=".55" /></g>
+      <g transform="rotate(8 80 60)"><rect x="40" y="20" width="96" height="50" rx="6" fill="url(#vc-note)" opacity=".9" /><rect x="46" y="26" width="84" height="38" rx="4" fill="none" stroke="#E8FFF2" strokeOpacity=".6" /></g>
+      <g mask="url(#vc-cut)" filter="drop-shadow(0 6px 8px rgba(10,20,50,.35))">
+        <rect x="15" y="40" width="130" height="58" rx="9" fill="url(#vc-card)" />
+        <rect x="104" y="40" width="12" height="58" fill="url(#vc-gold)" />
+      </g>
+      <path d="M110 40c-10-14-26-12-24-4 2 7 16 6 24 4zm0 0c10-14 26-12 24-4-2 7-16 6-24 4z" fill="url(#vc-gold)" />
+      <circle cx="110" cy="40" r="4.5" fill="#D98E04" />
+      <text x="28" y="66" fill="#FFE08A" fontSize="9" fontWeight="700" letterSpacing="1.2" fontFamily="Inter,system-ui,sans-serif">CREDIT NOTE</text>
+      <text x="28" y="87" fill="#fff" fontSize="21" fontWeight="800" fontFamily="Inter,system-ui,sans-serif">₹4,000</text>
+    </svg>
   );
 }
 

@@ -1555,8 +1555,6 @@ a.cpill{text-decoration:none}
 /* round 14b: keep the hero compact so products stay above the fold */
 @media (min-width:768px){.hero-c .copy{padding:18px 36px 12px!important;gap:10px}.hero-c h1{font-size:clamp(24px,2.6vw,32px)!important}}
 .hrw-it .rpic{width:40px;height:40px}
-.hrw-it .rpic.cnote .cn-card{display:none}
-.hrw-it .rpic.cnote::after{content:"₹4K";font-weight:800;font-size:12.5px;color:#065F46}
 @media (max-width:767px){.hero-model{display:none}}
 /* round 14c: NEW / % OFF sit at the end of the name line, so every tile keeps the same rows */
 .ptile .nmrow{display:flex;align-items:center;gap:8px;min-width:0}
@@ -1580,3 +1578,7 @@ a.cpill{text-decoration:none}
   .colrow .cline-t .badges{display:none}
   .ptile .bdg.ph-only{display:inline-flex;position:absolute;right:0;top:2px}
 }
+/* credit note: voucher illustration fills the frame like the photos do */
+.rpic.cnote{padding:0}
+.rpic .voucher{position:absolute;inset:0;width:100%;height:100%}
+.rnudge .rpic.cnote{padding:0}
