@@ -12,7 +12,7 @@ export function productHref(id: string, color?: string) {
   return `/product/${encodeURIComponent(id)}${color ? `?color=${encodeURIComponent(color)}` : ''}`;
 }
 
-export function ProductTile({ style, color, why }: { style: StyleCard; color?: string; why?: string }) {
+export function ProductTile({ style, color, why, cta }: { style: StyleCard; color?: string; why?: string; cta?: string }) {
   useStockVersion();
   const c = color ?? style.colors.find(x => colorTotal(style, x.name) > 0)?.name ?? style.colors[0]?.name ?? '';
   const zs = sizesOf(style);
@@ -28,14 +28,14 @@ export function ProductTile({ style, color, why }: { style: StyleCard; color?: s
         <div className="nm">{style.name}</div>
       </PLink>
       <ColourRow style={style} current={c} />
-      <div className="meta">{style.fit} fit · {style.fabric}</div>
+      <div className="meta"><span className="mono">{style.id}</span> · {style.fit} fit · {style.fabric}</div>
       <Price style={style} />
       <div className="tfoot"><PtsChip n={style.points} per /></div>
       <div className="sizestrip" aria-label="Stock per size">
         {zs.map(z => { const n = avail(style, c, z); return <span key={z} className={`sz${n === 0 ? ' out' : n <= LOW ? ' low' : ''}`}>{z}·{num(n)}</span>; })}
       </div>
       {why && <div className="why"><Icon name="spark" size={14} /><span>{why}</span></div>}
-      <button type="button" className="addbtn" onClick={() => quickAdd.open({ styleId: style.id, color: c, mode: 'add' })} aria-label={`Add ${style.name}, ${c}`}><Icon name="cart" size={16} />Add to cart</button>
+      <button type="button" className="addbtn" onClick={() => quickAdd.open({ styleId: style.id, color: c, mode: 'add' })} aria-label={`Add ${style.name}, ${c}`}><Icon name="cart" size={16} />{cta ?? 'Add to cart'}</button>
     </div>
   );
 }

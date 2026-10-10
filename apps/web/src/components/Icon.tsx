@@ -8,6 +8,8 @@ const P = {
   filter: <path d="M4 6h16M7 12h10M10 18h4" />,
   back: <path d="M15 5 8 12l7 7" />,
   fwd: <path d="M9 5l7 7-7 7" />,
+  play: <path d="M8 5.5v13l10-6.5z" fill="currentColor" stroke="none" />,
+  pause: <><rect x="7" y="5" width="3.5" height="14" rx="1" fill="currentColor" stroke="none" /><rect x="13.5" y="5" width="3.5" height="14" rx="1" fill="currentColor" stroke="none" /></>,
   check: <path d="m5 12.5 4.5 4.5L19 7.5" />,
   x: <path d="M6 6l12 12M18 6 6 18" />,
   inbox: <><path d="M3 13h5l1.5 3h5L16 13h5" /><path d="M5 5h14l2 8v6H3v-6z" /></>,

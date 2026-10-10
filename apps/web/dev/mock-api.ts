@@ -175,13 +175,52 @@ export async function handle(req: MockReq, res: MockRes) {
         looks: [],
         points: me.points ?? 0, nextReward: REWARD_TIERS.find(t => t.at > (me.points ?? 0)) });
     }
+    if (p === '/api/bestsellers') {
+      // Style + colour pairs this store has ordered more than once, most orders first, then most pieces.
+      // "usual" is the store's average quantity per size across those orders, so a restock repeats its real size mix.
+      const agg = new Map<string, { styleId: string; color: string; orders: number; pcs: number; last: string; sizes: Record<string, number> }>();
+      for (const o of orders) {
+        if (o.retailerId !== 'r1' || (o.collection ?? 'NOS') !== 'NOS' || ['rejected', 'cancelled'].includes(o.status)) continue;
+        const seen = new Set<string>();
+        for (const l of o.lines) {
+          const k = `${l.styleId}|${l.color}`;
+          const a = agg.get(k) ?? { styleId: l.styleId, color: l.color, orders: 0, pcs: 0, last: o.placedAt, sizes: {} };
+          if (!seen.has(k)) { a.orders++; seen.add(k); if (o.placedAt > a.last) a.last = o.placedAt; }
+          a.pcs += l.qty; a.sizes[l.size] = (a.sizes[l.size] ?? 0) + l.qty; agg.set(k, a);
+        }
+      }
+      const list = [...agg.values()].filter(a => a.orders > 1 && byId.has(a.styleId))
+        .sort((a, b) => b.orders - a.orders || b.pcs - a.pcs || b.last.localeCompare(a.last))
+        .map(a => ({ style: card(a.styleId), color: a.color, orders: a.orders, pcs: a.pcs, lastAt: a.last,
+          usual: Object.fromEntries(Object.entries(a.sizes).map(([z, q]) => [z, Math.max(1, Math.round(q / a.orders))])) }));
+      return send(res, 200, list);
+    }
+    if (p === '/api/store-pairs') {
+      // Complementary styles for what this store already buys: each anchor is one of its repeat styles,
+      // the partner comes from the pairing rules (occasion, colour, pattern, stock). Styles it already orders are left out.
+      const ctx = lookCtx();
+      const anchors = [...ctx.bought].filter(([, n]) => n > 1).sort((a, b) => b[1] - a[1]).map(([id]) => id);
+      const out: unknown[] = []; const used = new Set<string>(ctx.bought.keys());
+      for (const id of anchors) {
+        const a = byId.get(id)!;
+        const color = orders.find(o => o.retailerId === 'r1' && o.lines.some(l => l.styleId === id))!.lines.find(l => l.styleId === id)!.color;
+        const pick = partnersFor(a as LookStyle, color, STYLES as LookStyle[], ctx, 6).find(x => !used.has(x.style.id));
+        if (!pick) continue;
+        used.add(pick.style.id);
+        out.push({ ...card(pick.style.id, `Pairs with your ${a.name}, ${color}. You have ordered it ${ctx.bought.get(id)} times`), pairColor: pick.color });
+        if (out.length >= 8) break;
+      }
+      return send(res, 200, out);
+    }
     if (p === '/api/shelves') {
       // One tile per shelf on Home: how many styles are in stock there, and the best-stocked one for the photo.
       const tot = (id: string) => { const s = byId.get(id)!; return s.colors.reduce((a, c) => a + SIZES[s.category].reduce((x, z) => x + (stock[`${id}|${c}|${z}`] ?? 0), 0), 0); };
       return send(res, 200, SHELVES.map(sh => {
         const inStock = STYLES.filter(s => sh.test(s) && tot(s.id) > 0).sort((a, b) => tot(b.id) - tot(a.id));
+        // Styles where every size is in stock in at least one colour: the count a store can actually fill a wall from.
+        const full = inStock.filter(s => SIZES[s.category].every(z => s.colors.some(c => (stock[`${s.id}|${c}|${z}`] ?? 0) > 0))).length;
         const top = inStock[0];
-        return { key: sh.key, label: sh.label, n: inStock.length, cover: top ? card(top.id) : undefined };
+        return { key: sh.key, label: sh.label, n: inStock.length, full, cover: top ? card(top.id) : undefined };
       }));
     }
     if (p === '/api/catalogue') {

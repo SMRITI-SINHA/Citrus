@@ -4,11 +4,8 @@ import { POLICY } from '@citrus/shared';
 import { useQuery } from '../../lib/query';
 import { nextTier } from '../../lib/rewards';
 import { useT } from '../../lib/i18n';
-import { dmy, num } from '../../lib/format';
-import type { HomeData, Look, PastOrderCard } from '../../lib/types';
-import { useCart } from '../../state/cart';
-import { recentViews } from '../../state/ui';
-import { lookPart, pastId } from '../../lib/types';
+import { num } from '../../lib/format';
+import type { HomeData } from '../../lib/types';
 import { useMe } from '../../state/session';
 import { seedStyles, spec } from '../../state/catalogue';
 import { isOpen, nextStep, useMyOrders } from '../../state/orders';
@@ -20,8 +17,13 @@ import type { CataloguePage } from '../../lib/types';
 import { Icon } from '../../components/Icon';
 import { PLink } from '../../components/PLink';
 import { ProductTile, productHref } from '../../components/ProductTile';
-import { CardSkeletons, ErrorNote, SecHead, StatusBadge, TileSkeletons } from '../../components/Bits';
-import { ReorderSheet } from './ReorderSheet';
+import { ErrorNote, SecHead, StatusBadge, TileSkeletons } from '../../components/Bits';
+import { ReorderSheet, type ReorderRef } from './ReorderSheet';
+import { Marquee } from '../../components/Marquee';
+import type { StyleCard } from '@citrus/shared';
+import { avail, sizesOf } from '../../state/catalogue';
+import { tradeRate } from '../../components/Price';
+import { inr } from '../../lib/format';
 import { Rail } from '../../components/Rail';
 import { VoiceButton } from './voice';
 
@@ -35,10 +37,7 @@ export default function Home() {
   const { data: deals } = useQuery<CataloguePage>('/api/catalogue?offer=1&inStock=1&sort=offer&limit=10', { staleMs: 120_000 });
   useEffect(() => { seedStyles(deals?.items); }, [deals]);
   const best = deals?.items.reduce((a, s) => Math.max(a, s.offer?.pct ?? 0), 0) ?? 0;
-  const [reorder, setReorder] = useState<PastOrderCard | null>(null);
-  const cart = useCart();
-  const cartKeys = [...new Set(cart.lines.map(l => `${l.styleId}|${l.color}`))].slice(0, 3).join(',');
-  const { data: looks } = useQuery<Look[]>(`/api/looks?cart=${encodeURIComponent(cartKeys)}&viewed=${encodeURIComponent(recentViews.list().slice(0, 3).join(','))}`, { staleMs: 60_000 });
+  const [reorder, setReorder] = useState<ReorderRef | null>(null);
   useEffect(() => { if (data) { seedStyles(data.recommended); seedStyles(data.newStyles); } }, [data]);
 
   const points = me.points ?? data?.points ?? 0;
@@ -51,13 +50,16 @@ export default function Home() {
   return (
     <>
       <div className="stack" style={{ gap: 14 }}>
-        <section className="hero-b fade">
+        <section className="hero-b hero-c fade">
           <div className="copy">
             <div className="hero-hi"><span className="hi">{t('hello')}, <b>{firstName}</b></span><span className="nospill"><Icon name="spark" size={14} />NOS essentials</span></div>
-            <h1>Pause. Breathe.<br /><em>Restock.</em></h1>
-            <p>Your best-sellers are in stock today. Reorder your usual in one tap, or type exactly what you want in each size.</p>
+            <h1>Pause. Breathe. <em>Restock.</em></h1>
+            <div className="searchrow hero-search">
+              <HomeSearch />
+              <VoiceButton onResult={q => nav(`/catalogue?q=${encodeURIComponent(q)}`)} />
+            </div>
             <div className="acts">
-              {lastOrder ? <button type="button" className="btn citrus" onClick={() => setReorder(lastOrder)}>Restock from last order</button>
+              {lastOrder ? <button type="button" className="btn citrus" onClick={() => setReorder({ orderId: lastOrder.orderId, number: lastOrder.number, placedAt: lastOrder.placedAt })}>Restock from last order</button>
                 : <PLink to="/catalogue" className="btn citrus">{t('browse')}</PLink>}
               {lastOrder && <PLink to="/catalogue" className="btn light">{t('browse')}</PLink>}
             </div>
@@ -66,27 +68,17 @@ export default function Home() {
             <BrandArt />
           </div>
         </section>
-        {actives.length > 0 && <ActiveOrders orders={actives} />}
-        <div className="searchrow">
-          <HomeSearch />
-          <VoiceButton onResult={q => nav(`/catalogue?q=${encodeURIComponent(q)}`)} />
-        </div>
       </div>
 
       <Shelves />
 
       {error && !data && <ErrorNote error={error} onRetry={refresh} />}
 
-      <section>
-        <SecHead title={t('buyAgain')} sub={t('buyAgainSub')} />
-        <div style={{ marginTop: 12 }}>
-          {!data ? (error ? null : <CardSkeletons n={1} h={200} />) : buyAgain.length ? (
-            <Rail label="Buy again" style={{ gridAutoColumns: 'minmax(260px,80%)' }}>
-              {buyAgain.slice(0, 3).map(p => <BuyAgainCard key={pastId(p)} p={p} onReorder={() => setReorder(p)} />)}
-            </Rail>
-          ) : <div className="card empty" style={{ padding: 24 }}><b>Your past orders will show here.</b><br />Start with the catalogue; next time it's one tap.</div>}
-        </div>
-      </section>
+      <BestSellers onRestock={setReorder} lastOrder={lastOrder ? { orderId: lastOrder.orderId, number: lastOrder.number, placedAt: lastOrder.placedAt } : undefined} />
+
+      {actives.length > 0 && <ActiveOrders orders={actives} />}
+
+      <GoesWith />
 
       {deals && deals.items.length > 0 && (
         <section className="stack" style={{ gap: 12 }}>
@@ -115,36 +107,6 @@ export default function Home() {
         <section>
           <SecHead title={t('newp')} sub={t('newSub')} />
           <div style={{ marginTop: 12 }}><Rail label={t('newp')}>{data.newStyles.map(s => <ProductTile key={s.id} style={s} />)}</Rail></div>
-        </section>
-      )}
-
-      {looks && looks.length > 0 && (
-        <section>
-          <SecHead title={t('look')} sub="Built from your cart, the styles you looked at and what your store orders" />
-          <div style={{ marginTop: 12 }}><Rail label={t('look')}>
-            {looks.map((l, i) => {
-              const top = lookPart(l.top), bot = lookPart(l.bottom);
-              if (!top.style || !bot.style) return null;
-              const sug = l.anchor === 'bottom' ? top : bot, have = l.anchor === 'bottom' ? bot : top;
-              const tag = l.source === 'cart' ? 'In your cart' : l.source === 'viewed' ? 'You viewed' : 'You ordered';
-              const half = (x: typeof top, isSug: boolean) => (
-                <PLink to={productHref(x.style!.id, x.color)} className={`lookhalf${isSug ? ' sug' : ''}`} data={`/api/styles/${x.style!.id}`} aria-label={`${x.style!.name}, ${x.color}`}>
-                  <span className="pimg"><Garment swatch={false} spec={spec(x.style, x.color)} /></span>
-                  <span className={`lk-tag${isSug ? ' sug' : ''}`}>{isSug ? 'Add this' : tag}</span>
-                </PLink>
-              );
-              return (
-                <div key={i} className="lookcard">
-                  <span className="lookimgs">{half(top, sug === top)}<span className="plus" aria-hidden="true">+</span>{half(bot, sug === bot)}</span>
-                  <PLink to={productHref(sug.style!.id, sug.color)} className="lk-sug" data={`/api/styles/${sug.style!.id}`}>
-                    <span className="lk-name"><b>{sug.style!.name}</b><span className="cpill"><i className="cdot" style={{ background: sug.style!.colors.find(c => c.name === sug.color)?.hex }} />{sug.color}</span></span>
-                    <span className="muted small">with your {have.style!.name}, {have.color}</span>
-                  </PLink>
-                  <span className="pwhy">{l.reason ?? ''}</span>
-                </div>
-              );
-            })}
-          </Rail></div>
         </section>
       )}
 
@@ -177,39 +139,30 @@ function ActiveOrders({ orders }: { orders: Order[] }) {
   }, [cur, n, hold, reduce]);
   const go = (d: number) => setI(x => (x + d + n) % n);
   return (
-    <section className="oslider" aria-roledescription="carousel" aria-label="Orders on the way"
+    <section className="oslider slim" aria-roledescription="carousel" aria-label="Orders on the way"
       onPointerEnter={() => setHold(true)} onPointerLeave={() => setHold(false)} onFocus={() => setHold(true)} onBlur={() => setHold(false)} onTouchStart={() => setHold(true)}>
-      <div className="os-head">
-        <b>{n === 1 ? 'Your order on the way' : `${n} orders on the way`}</b>
-        <span className="os-hr">
-          {n > 1 && <span className="os-harr"><button type="button" className="os-arr" onClick={() => go(-1)} aria-label="Previous order"><Icon name="back" size={14} /></button><span className="num muted small">{cur + 1}/{n}</span><button type="button" className="os-arr" onClick={() => go(1)} aria-label="Next order"><Icon name="fwd" size={14} /></button></span>}
-          <PLink to="/orders" className="linkbtn">View all</PLink>
-        </span>
-      </div>
-      <div className="os-row">
-        {n > 1 && <button type="button" className="os-arr os-side" onClick={() => go(-1)} aria-label="Previous order"><Icon name="back" size={16} /></button>}
-        <div className="os-view">
-          <div className="os-track" style={{ transform: `translateX(-${cur * 100}%)` }}>
-            {orders.map((o, k) => {
-              const step = nextStep(o);
-              return (
-                <PLink key={o.id} to={`/orders/${o.id}`} className={`os-card st-${o.status}`} data={`/api/orders/${o.id}`} aria-hidden={k !== cur} tabIndex={k === cur ? 0 : -1} aria-label={`Order ${o.number}, ${step.text}`}>
-                  <StatusBadge status={o.status} />
-                  <span className="os-main"><b className="mono">{o.number}</b><span className="muted"> · {num(o.totalQty)} pcs · {dmy(o.placedAt)}</span><span className="os-step">{step.text}</span></span>
-                  <span className="os-cta">{step.cta}<Icon name="fwd" size={14} /></span>
-                </PLink>
-              );
-            })}
-          </div>
+      <span className="os-label"><Icon name="box" size={16} /><b>{n === 1 ? '1 order' : `${n} orders`}</b><span className="muted"> on the way</span></span>
+      <div className="os-view">
+        <div className="os-track" style={{ transform: `translateX(-${cur * 100}%)` }}>
+          {orders.map((o, k) => {
+            const step = nextStep(o);
+            return (
+              <PLink key={o.id} to={`/orders/${o.id}`} className={`os-card st-${o.status}`} data={`/api/orders/${o.id}`} aria-hidden={k !== cur} tabIndex={k === cur ? 0 : -1} aria-label={`Order ${o.number}, ${step.text}`}>
+                <StatusBadge status={o.status} />
+                <span className="os-main"><b className="mono">{o.number}</b><span className="os-step"> · {step.text}</span></span>
+                <span className="os-cta">{step.cta}<Icon name="fwd" size={14} /></span>
+              </PLink>
+            );
+          })}
         </div>
-        {n > 1 && <button type="button" className="os-arr os-side" onClick={() => go(1)} aria-label="Next order"><Icon name="fwd" size={16} /></button>}
       </div>
-      {n > 1 && <div className="os-dots" role="tablist" aria-label="Choose order">{orders.map((o, k) => <button key={o.id} type="button" role="tab" aria-selected={k === cur} aria-label={`Order ${o.number}`} className={`st-${o.status}${k === cur ? ' on' : ''}`} onClick={() => setI(k)} />)}</div>}
+      {n > 1 && <span className="os-nav"><button type="button" className="os-arr" onClick={() => go(-1)} aria-label="Previous order"><Icon name="back" size={14} /></button><span className="num muted small">{cur + 1}/{n}</span><button type="button" className="os-arr" onClick={() => go(1)} aria-label="Next order"><Icon name="fwd" size={14} /></button></span>}
+      <PLink to="/orders" className="linkbtn os-all">View all</PLink>
     </section>
   );
 }
 
-interface ShelfTile { key: string; label: string; n: number; cover?: import('../../lib/types').CataloguePage['items'][number] }
+interface ShelfTile { key: string; label: string; n: number; full: number; cover?: import('../../lib/types').CataloguePage['items'][number] }
 // One clear CITRUS photo per shelf, so every circle shows a different garment.
 const SHELF_PHOTO: Record<string, string> = { 'formal-shirts': 'g/ampm-shirt.webp', 'casual-shirts': 'g/casual-shirt.webp', chinos: 'g/cotton-trouser.webp', 'formal-trousers': 'g/formalpant-trouser.webp', polos: 'g/shorts-polo.webp', tees: 'g/cargo-tee.webp' };
 // The shelves a store restocks by. One tap opens that shelf, in-stock styles first.
@@ -217,16 +170,18 @@ function Shelves() {
   const { data } = useQuery<ShelfTile[]>('/api/shelves', { staleMs: 120_000 });
   if (!data) return null;
   return (
-    <section>
-      <SecHead title="Restock a shelf" sub="Pick the shelf that is running low" action={<PLink to="/catalogue" className="linkbtn" preloadVisible>See all</PLink>} />
-      <nav className="shelves" aria-label="Shelves" style={{ marginTop: 12 }}>
-        {data.map(x => (
-          <PLink key={x.key} to={`/catalogue?shelf=${x.key}&sort=avail`} className="shelf">
-            <span className="sc">{SHELF_PHOTO[x.key] ? <span className="ph"><img src={photoUrl(SHELF_PHOTO[x.key])} alt="" loading="lazy" decoding="async" /></span> : x.cover && <Garment swatch={false} spec={spec(x.cover, x.cover.colors[0]?.name ?? '')} />}</span>
-            <b>{x.label}</b><small>{num(x.n)} styles in stock</small>
-          </PLink>
-        ))}
-      </nav>
+    <section className="home-shelves">
+      <SecHead title="Shop by shelf" sub="Tap a shelf to see every style in stock" action={<PLink to="/catalogue" className="linkbtn" preloadVisible>See all</PLink>} />
+      <div style={{ marginTop: 12 }}>
+        <Marquee label="Shelves">
+          {data.map(x => (
+            <PLink key={x.key} to={`/catalogue?shelf=${x.key}&sort=avail`} className="shelf">
+              <span className="sc">{SHELF_PHOTO[x.key] ? <span className="ph"><img src={photoUrl(SHELF_PHOTO[x.key])} alt="" loading="lazy" decoding="async" draggable={false} /></span> : x.cover && <Garment swatch={false} spec={spec(x.cover, x.cover.colors[0]?.name ?? '')} />}</span>
+              <b>{x.label}</b><small>{num(x.full)} styles · all sizes</small>
+            </PLink>
+          ))}
+        </Marquee>
+      </div>
     </section>
   );
 }
@@ -265,31 +220,58 @@ function HomeSearch() {
   );
 }
 
-function BuyAgainCard({ p, onReorder }: { p: PastOrderCard; onReorder: () => void }) {
-  const { t } = useT();
-  const styles = p.styles ?? [];
-  const outStyles = p.totalStyles !== undefined && p.inStockStyles !== undefined ? p.totalStyles - p.inStockStyles : 0;
+interface BestSeller { style: StyleCard; color: string; orders: number; pcs: number; lastAt: string; usual: Record<string, number> }
+
+// Styles this store orders again and again, most-ordered first. One tap opens the size preview with its usual
+// quantities next to today's stock. Whole past orders stay in Order history; this row is about styles.
+function BestSellers({ onRestock, lastOrder }: { onRestock: (r: ReorderRef) => void; lastOrder?: ReorderRef }) {
+  const { data } = useQuery<BestSeller[]>('/api/bestsellers', { staleMs: 60_000 });
+  useEffect(() => { seedStyles(data?.map(b => b.style)); }, [data]);
   return (
-    <div className="card ro">
-      <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <b className="mono">{p.number ?? pastId(p)}</b>
-        <span className="muted small">{p.placedAt ? dmy(p.placedAt) : ''}</span>
+    <section>
+      <SecHead title="Restock your best-sellers" sub="Styles you order most, with your usual sizes" action={lastOrder ? <button type="button" className="linkbtn" onClick={() => onRestock(lastOrder)}>Restock last order</button> : undefined} />
+      <div style={{ marginTop: 12 }}>
+        {!data ? <TileSkeletons n={4} scroll /> : data.length ? (
+          <Rail label="Your best-sellers" style={{ gridAutoColumns: 'minmax(300px,340px)' }}>{data.map(b => <BestCard key={b.style.id + b.color} b={b} onRestock={() => onRestock({ items: [{ styleId: b.style.id, color: b.color, want: b.usual }], title: `Restock ${b.style.name}`, eyebrow: `${b.color} · your usual sizes`, usual: true })} />)}</Rail>
+        ) : <div className="card empty" style={{ padding: 24 }}><b>Styles you order more than once will show here.</b></div>}
       </div>
-      <div className="thumbs">{styles.slice(0, 5).map((s, i) => <div key={i}><Garment swatch={false} spec={{ kind: s.kind ?? 'shirt', pattern: 'Solid', fit: 'Regular', hex: s.hex ?? '#8C919A', name: s.name, color: s.color, styleId: s.styleId }} /></div>)}</div>
-      <div style={{ fontSize: 13 }}>{p.totalStyles ?? styles.length} style{(p.totalStyles ?? styles.length) === 1 ? '' : 's'}{p.totalQty ? ` · ${num(p.totalQty)} pcs last time` : ''}</div>
-      <StockLine p={p} outStyles={outStyles} />
-      <button type="button" className="btn sec" onClick={onReorder} disabled={p.inStockQty === 0}>{p.inStockQty === 0 ? 'Not in stock right now' : t('reorder')}</button>
+    </section>
+  );
+}
+
+function BestCard({ b, onRestock }: { b: BestSeller; onRestock: () => void }) {
+  const s = b.style;
+  const sizes = sizesOf(s).filter(z => b.usual[z]);
+  const short = sizes.filter(z => avail(s, b.color, z) < b.usual[z]).length;
+  return (
+    <div className="card best">
+      <PLink to={productHref(s.id, b.color)} className="best-top" data={`/api/styles/${s.id}`}>
+        <span className="best-im"><Garment swatch={false} spec={spec(s, b.color)} /></span>
+        <span className="best-id">
+          <span className="best-rank"><Icon name="refresh" size={12} />Ordered {b.orders} times</span>
+          <b>{s.name}</b>
+          <span className="muted small"><span className="mono">{s.id}</span> · {b.color}</span>
+          <span className="small"><b className="num">{inr(tradeRate(s))}</b><span className="muted">/pc</span></span>
+        </span>
+      </PLink>
+      <div className="best-sz" aria-label="Your usual sizes and today's stock">
+        {sizes.map(z => { const a = avail(s, b.color, z), u = b.usual[z]; return <span key={z} className={a === 0 ? 'out' : a < u ? 'low' : 'ok'}><b>{z}</b><small>{a === 0 ? 'out' : a < u ? `${a} left` : `${u} usual`}</small></span>; })}
+      </div>
+      <span className={`best-note ${short ? 'low' : 'ok'}`}><Icon name={short ? 'alert' : 'check'} size={14} />{short ? `${short} size${short > 1 ? 's' : ''} short today. You can adjust before adding` : 'All your usual sizes are in stock'}</span>
+      <button type="button" className="btn sec" onClick={onRestock}>Choose sizes and restock</button>
     </div>
   );
 }
 
-// What can actually be sent again today, so a reorder never surprises the store.
-function StockLine({ p, outStyles }: { p: PastOrderCard; outStyles: number }) {
-  const got = p.inStockQty, all = p.totalQty;
-  const box = (tone: string, icon: 'alert' | 'check', head: string, sub: string) => (
-    <div className={`note ${tone} stockline`}><Icon name={icon} size={16} /><span><b>{head}</b><small>{sub}</small></span></div>
+// Styles that go with what this store already sells, and none it already orders.
+function GoesWith() {
+  const { data } = useQuery<(StyleCard & { pairColor?: string })[]>('/api/store-pairs', { staleMs: 120_000 });
+  useEffect(() => { seedStyles(data); }, [data]);
+  if (!data?.length) return null;
+  return (
+    <section>
+      <SecHead title="Goes with what you stock" sub="New to your store, picked to pair with styles you order often" />
+      <div style={{ marginTop: 12 }}><Rail label="Goes with what you stock">{data.map(s => <ProductTile key={s.id} style={s} color={s.pairColor} why={s.reason} cta="View sizes" />)}</Rail></div>
+    </section>
   );
-  if (got === 0) return box('bad', 'alert', 'Not in stock', 'None of these styles can be sent now');
-  if (got !== undefined && got < all) return box('warn', 'alert', `${num(got)} of ${num(all)} pcs in stock`, outStyles > 0 ? `${outStyles} style${outStyles > 1 ? 's' : ''} sold out, some sizes skipped` : 'Some sizes will be skipped');
-  return box('ok', 'check', `All ${num(all)} pcs in stock`, 'Same sizes and colours as last time');
 }
