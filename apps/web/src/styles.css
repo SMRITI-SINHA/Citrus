@@ -1641,3 +1641,15 @@ a.cpill{text-decoration:none}
   box-shadow:0 10px 24px -12px rgba(214,36,159,.65),0 0 0 1px rgba(182,43,217,.15)}
 .mq .shelf .sc .ph{inset:4.5px;box-shadow:0 0 0 2.5px var(--surface)}
 .mq .shelf:hover .sc{box-shadow:0 0 22px rgba(226,40,155,.45),0 16px 30px -12px rgba(214,36,159,.75)}
+/* round 15f: Add to cart = bright rose-red to orange (warm, sits with the gold points); hero keeps aqua on navy */
+:root{--cta-grad:linear-gradient(135deg,#D61F4F 0%,#EE3F48 45%,#F7703A 100%);--cta-ink:#FFFFFF;--cta-glow:rgba(226,48,72,.55);
+  --low-fill:#FFE8EE;--low-line:#9F1239;--low-ink:#9F1239}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--low-fill:#3A1020;--low-line:#FB7199;--low-ink:#FFB3C6;--cta-glow:rgba(226,48,72,.4)}}
+:root[data-theme="dark"]{--low-fill:#3A1020;--low-line:#FB7199;--low-ink:#FFB3C6;--cta-glow:rgba(226,48,72,.4)}
+.addbtn{text-shadow:0 1px 1px rgba(110,10,30,.25);box-shadow:inset 0 1px 0 rgba(255,255,255,.4),inset 0 -2px 6px rgba(120,10,30,.2),0 10px 22px -12px var(--cta-glow),0 2px 6px -3px var(--cta-glow)}
+.addbtn:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -2px 6px rgba(120,10,30,.2),0 14px 28px -12px var(--cta-glow)}
+/* few left: pale rose with a maroon border, calm but clear */
+.best-sz .low{background:var(--low-fill);border:1.5px solid var(--low-line);box-shadow:none;animation:none}
+.best-sz .low b,.best-sz .low small{color:var(--low-ink)!important}
+.sz.low{background:var(--low-fill);color:var(--low-ink);box-shadow:inset 0 0 0 1.5px var(--low-line)}
+.best-note.low{color:var(--low-ink)}

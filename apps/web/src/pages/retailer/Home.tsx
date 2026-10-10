@@ -291,7 +291,7 @@ function GoesWith() {
   return (
     <section>
       <SecHead title="Goes with what you stock" sub="New to your store, picked to pair with styles you order often" />
-      <div style={{ marginTop: 12 }}><Rail label="Goes with what you stock">{data.map(s => <ProductTile key={s.id} style={s} color={s.pairColor} why={s.reason} cta="View sizes" />)}</Rail></div>
+      <div style={{ marginTop: 12 }}><Rail label="Goes with what you stock">{data.map(s => <ProductTile key={s.id} style={s} color={s.pairColor} why={s.reason} />)}</Rail></div>
     </section>
   );
 }
