@@ -25,7 +25,11 @@ export function ProductTile({ style, color, why }: { style: StyleCard; color?: s
       <Badges style={style} />
       <PLink to={productHref(style.id, c)} tabIndex={-1} style={{ color: 'inherit', textDecoration: 'none' }} data={`/api/styles/${style.id}`}>
         <div className="nm">{style.name}</div>
-        <div className="meta"><i className="cdot" style={{ background: style.colors.find(x => x.name === c)?.hex }} />{c} · {style.fit} fit</div>
+        <div className="cline-t">
+          <span className="cpill"><i className="cdot" style={{ background: style.colors.find(x => x.name === c)?.hex }} />{c}</span>
+          {style.colors.length > 1 && <span className="cmore">+{style.colors.length - 1} colour{style.colors.length > 2 ? 's' : ''}</span>}
+        </div>
+        <div className="meta">{style.fit} fit · {style.fabric}</div>
       </PLink>
       <Price style={style} />
       <div className="tfoot"><PtsChip n={style.points} per /></div>

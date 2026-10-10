@@ -2,8 +2,9 @@
 // Implements the docs/API.md contract over the shared seed data. Not used in production.
 // Run: npm run mock -w apps/web   (port 4300), then VITE_MOCK=1 npm run dev -w apps/web
 // The same handler also runs inside the browser for the hosted demo (src/demo/inbrowser.ts), so it uses no Node-only modules.
-import type { Cart, CartLine, Category, Me, Order, OrderLine, OrderStatus, StyleCard } from '@citrus/shared';
+import type { Cart, CartLine, Category, Me, Order, OrderLine, OrderStatus, StyleCard, Look } from '@citrus/shared';
 import { ASSUMPTIONS, DEFAULT_RATIO, DISCOUNT_STEPS, offerFor, PRICE_BANDS, REWARD_TIERS, SIZES } from '@citrus/shared';
+import { partnersFor, type LookCtx, type LookStyle } from '@citrus/shared/src/looks.ts';
 import { COLORS, DISTRIBUTORS, PAST_ORDERS, RECOMMENDATIONS, RETAILERS, STYLES, seedStock } from '@citrus/shared/src/seed.ts';
 
 const env: Record<string, string | undefined> = (globalThis as { process?: { env: Record<string, string | undefined> } }).process?.env ?? {};
@@ -110,6 +111,17 @@ const session = (phone: string, _res: MockRes) => {
 const avail = (l: { styleId: string; color: string; size: string }) => stock[`${l.styleId}|${l.color}|${l.size}`] ?? 0;
 const bump = () => { cart = { ...cart, updatedAt: new Date().toISOString(), version: cart.version + 1 }; };
 
+// What this store buys, for Complete the look: styles it has ordered and how many pieces of each trouser/shirt type.
+const tot = (id: string, c: string) => { const s = byId.get(id); return s ? SIZES[s.category].reduce((a, z) => a + (stock[`${id}|${c}|${z}`] ?? 0), 0) : 0; };
+const lookCtx = (): LookCtx => {
+  const bought = new Map<string, number>(), boughtKinds = new Map<string, number>();
+  for (const o of orders) if (o.retailerId === 'r1' && o.status !== 'rejected' && o.status !== 'cancelled') {
+    for (const id of new Set(o.lines.map(l => l.styleId))) bought.set(id, (bought.get(id) ?? 0) + 1);
+    for (const l of o.lines) { const k = byId.get(l.styleId)?.kind; if (k) boughtKinds.set(k, (boughtKinds.get(k) ?? 0) + l.qty); }
+  }
+  return { stockOf: tot, bought, boughtKinds };
+};
+
 export async function handle(req: MockReq, res: MockRes) {
   const url = new URL(req.url!, 'http://x');
   const p = url.pathname, m = req.method!;
@@ -160,7 +172,7 @@ export async function handle(req: MockReq, res: MockRes) {
           inStockQty: o.lines.reduce((a, l) => a + Math.min(l.qty, avail(l)), 0) };
       });
       return send(res, 200, { buyAgain: recent, recommended: RECOMMENDATIONS.map(r => card(r.styleId, r.reason)), newStyles: STYLES.filter(s => s.isNew).slice(0, 8).map(s => card(s.id)),
-        looks: [['CS-1101', 'Sky Blue', 'CT-2101', 'Khaki'], ['CS-1104', 'Navy', 'CT-2102', 'Charcoal'], ['CK-3101', 'Navy', 'CT-2103', 'Charcoal']].map(([a, ac, b, bc]) => ({ top: { style: card(a), color: ac }, bottom: { style: card(b), color: bc } })),
+        looks: [],
         points: me.points ?? 0, nextReward: REWARD_TIERS.find(t => t.at > (me.points ?? 0)) });
     }
     if (p === '/api/catalogue') {
@@ -201,9 +213,26 @@ export async function handle(req: MockReq, res: MockRes) {
     const pr = p.match(/^\/api\/styles\/([^/]+)\/pairs$/);
     if (pr) {
       const s0 = byId.get(decodeURIComponent(pr[1])); if (!s0) return send(res, 200, []);
-      const wantBottoms = s0.category !== 'Trousers';
-      const pool = STYLES.filter(x => (x.category === 'Trousers') === wantBottoms).slice(0, 4);
-      return send(res, 200, pool.map((x, i) => ({ ...card(x.id), reason: i === 0 ? 'Often ordered together (7 orders)' : `Pairs with ${url.searchParams.get('color') ?? s0.colors[0]}: ${x.colors[0]}` })));
+      const color = url.searchParams.get('color') ?? s0.colors[0];
+      return send(res, 200, partnersFor(s0 as LookStyle, color, STYLES as LookStyle[], lookCtx(), 4).map(x => ({ ...card(x.style.id, x.reason), pairColor: x.color })));
+    }
+    if (p === '/api/looks') {
+      // Built around what the store is buying now: cart first, then styles it looked at, then its last orders.
+      const ctx = lookCtx(); const used = new Set<string>(); const out: Look[] = [];
+      const anchors: { id: string; color: string; source: Look['source'] }[] = [];
+      for (const [k, src] of [['cart', 'cart'], ['viewed', 'viewed']] as const) for (const a of (url.searchParams.get(k) ?? '').split(',').filter(Boolean)) { const [id, color] = a.split('|'); if (byId.has(id) && color) anchors.push({ id, color, source: src }); }
+      for (const o of orders.filter(o => o.retailerId === 'r1' && o.status === 'delivered' && o.collection === 'NOS').slice(0, 2)) for (const l of o.lines) anchors.push({ id: l.styleId, color: l.color, source: 'ordered' });
+      for (const a of anchors) {
+        if (out.length >= 4) break;
+        const key = `${a.id}|${a.color}`; if (used.has(key)) continue; used.add(key);
+        const s = byId.get(a.id)!; const top = s.category !== 'Trousers';
+        const pick = partnersFor(s as LookStyle, a.color, STYLES as LookStyle[], ctx, 6).find(x => !used.has(`${x.style.id}|${x.color}`));
+        if (!pick) continue; used.add(`${pick.style.id}|${pick.color}`);
+        const mine = { style: card(a.id), color: a.color }, other = { style: card(pick.style.id), color: pick.color };
+        const lead = a.source === 'cart' ? `For the ${s.name} in your cart. ` : a.source === 'viewed' ? `You looked at the ${s.name}. ` : '';
+        out.push({ top: top ? mine : other, bottom: top ? other : mine, reason: lead + pick.reason, source: a.source, anchor: top ? 'top' : 'bottom' });
+      }
+      return send(res, 200, out);
     }
     if (p.startsWith('/api/styles/')) { const id = decodeURIComponent(p.split('/')[3]); return byId.has(id) ? send(res, 200, card(id)) : err(res, 404, 'NOT_FOUND', 'Style not found'); }
     if (p === '/api/cart' && m === 'GET') return send(res, 200, cart);

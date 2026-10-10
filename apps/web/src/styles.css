@@ -1084,3 +1084,69 @@ body.sheet-open .toast-host{top:calc(env(safe-area-inset-top,0px) + 12px);bottom
 .ro .stockline>span{display:flex;flex-direction:column;gap:1px;min-width:0}
 .ro .stockline small{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ro>.btn{margin-top:auto}
+
+/* ---------- Round 7: colour pill, sparkle points, low-stock orange, roomier cards ---------- */
+:root{--pts-a:#7B2FF7;--pts-b:#D6249F;--pts-c:#F5A3FF;--pts-soft:#F4E9FF;--pts-ink:#6A1FD0;--low:#C2410C;--low-soft:#FFE8DA;--low-line:#FDBA8C}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--pts-soft:#2B1747;--pts-ink:#D8B4FE;--low:#FDBA74;--low-soft:#3A1F10;--low-line:#7C3A12}}
+:root[data-theme="dark"]{--pts-soft:#2B1747;--pts-ink:#D8B4FE;--low:#FDBA74;--low-soft:#3A1F10;--low-line:#7C3A12}
+
+/* Colour: a real swatch and the name, big enough to read at a glance */
+.cline-t{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px}
+.cpill{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:600;color:var(--ink);padding:4px 11px 4px 5px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line)}
+.cpill .cdot{width:18px;height:18px;margin:0;box-shadow:inset 0 0 0 1.5px rgba(0,0,0,.18),0 0 0 2px var(--surface)}
+.cmore{font-size:12px;color:var(--muted);font-weight:500}
+.ptile .meta{font-size:12px;margin-top:4px}
+
+/* Points: their own sparkly violet-magenta, used everywhere points appear */
+.vchip.pts,.tagx.pts,.mc-pts,.stile.pts .sv{position:relative;overflow:hidden;background:linear-gradient(110deg,var(--pts-a),var(--pts-b));color:#fff;box-shadow:0 4px 14px -6px color-mix(in srgb,var(--pts-b) 70%,transparent)}
+.vchip.pts::after,.tagx.pts::after,.mc-pts::after{content:"";position:absolute;inset:0;background:linear-gradient(105deg,transparent 30%,rgba(255,255,255,.55) 45%,transparent 60%);transform:translateX(-120%);animation:ptsShine 3.2s ease-in-out infinite;pointer-events:none}
+.vchip.pts svg{color:#FFE3FF}
+@keyframes ptsShine{0%,55%{transform:translateX(-120%)}85%,100%{transform:translateX(120%)}}
+@media (prefers-reduced-motion:reduce){.vchip.pts::after,.tagx.pts::after,.mc-pts::after{animation:none;display:none}}
+.stile.pts{background:var(--pts-soft);color:var(--pts-ink)}
+.rpts{color:var(--pts-ink)}
+
+/* Low stock: orange, distinct from citrus yellow and from sold-out */
+.sz.low{background:var(--low-soft);color:var(--low);box-shadow:inset 0 0 0 1px var(--low-line);font-weight:700}
+.ptile .lowline{color:var(--low)}
+
+/* Roomier cards: fewer per row, more padding, more air between them */
+.ptile{padding:12px 12px 14px;gap:10px;border-radius:18px}
+.ptile>*:not(.img){padding:0 2px}
+.ptile .img{border-radius:12px}
+.sz{font-size:11.5px;padding:3px 8px;border-radius:6px}
+.sizestrip{gap:6px}
+.hscroll{grid-auto-columns:minmax(200px,66%);gap:16px;padding:4px 2px 14px}
+@media (min-width:600px){.hscroll{grid-auto-columns:minmax(220px,42%);gap:20px}}
+@media (min-width:900px){.hscroll{grid-auto-columns:minmax(230px,31%);gap:24px}}
+@media (min-width:1300px){.hscroll{grid-auto-columns:minmax(240px,23.6%);gap:24px}}
+.grid{gap:18px 14px}
+@media (min-width:768px){.grid{gap:28px 22px}}
+.content{gap:40px}
+@media (min-width:768px){.content{gap:52px}}
+
+/* Complete the look: the piece to add pops; the piece the store already has is labelled and quieter */
+.lookcard{padding:12px 12px 16px;gap:8px;border-radius:18px}
+.lookimgs{gap:8px}
+.lookhalf{position:relative;display:block;border-radius:12px;color:inherit;text-decoration:none;transition:transform .2s}
+.lookhalf .pimg{border-radius:12px}
+.lookhalf:not(.sug) .pimg{opacity:.78;filter:saturate(.85)}
+.lookhalf.sug .pimg{box-shadow:0 0 0 3px var(--citrus),0 10px 24px -10px rgba(16,24,40,.45)}
+.lookhalf.sug:hover{transform:translateY(-2px)}
+.lk-tag{position:absolute;left:8px;bottom:8px;font-size:11px;font-weight:700;padding:3px 8px;border-radius:999px;background:rgba(16,24,40,.72);color:#fff;letter-spacing:.02em}
+.lk-tag.sug{background:var(--citrus);color:#14213D}
+.lk-sug{display:flex;flex-direction:column;gap:4px;color:inherit;text-decoration:none}
+.lk-name{display:flex;align-items:center;justify-content:space-between;gap:8px;min-width:0}
+.lk-name b{font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.lk-name .cpill{flex:none;font-size:12.5px}
+.lookcard .pwhy{font-size:12.5px;color:var(--ink-2);background:var(--surface-2);border-radius:10px;padding:8px 10px;-webkit-line-clamp:3;min-height:0}
+.hscroll:has(.lookcard){grid-auto-columns:minmax(290px,88%)}
+@media (min-width:768px){.hscroll:has(.lookcard){grid-auto-columns:minmax(320px,48%)}}
+@media (min-width:1200px){.hscroll:has(.lookcard){grid-auto-columns:minmax(330px,32%)}}
+.pcard{padding:10px 10px 14px;gap:6px;border-radius:16px}
+.pairs-row{gap:20px}
+.pcard .pwhy{-webkit-line-clamp:3}
+.cline-t{flex-wrap:nowrap;min-width:0}
+.cline-t .cpill{min-width:0;max-width:100%}
+.cmore{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.bslot{display:block;min-height:24px}.pcard .pnm{min-height:2.6em}.pcard .pwhy{margin-top:auto}

@@ -64,6 +64,8 @@ export interface StyleCard {
   /** availability per colour per size, from the CITRUS Trade availability layer */
   stock: Record<string, Record<string, number>>;
   reason?: string; // recommendation reason
+  /** for Complete the look: the colour of this style that goes with the piece being viewed */
+  pairColor?: string;
   /** a running CITRUS scheme on this style: the trade rate after the scheme, and how it is described to retailers */
   offer?: Offer;
 }
@@ -117,7 +119,11 @@ export interface PastOrderCard {
   /** pieces from last time that could be sent again today */
   inStockQty?: number;
 }
-export interface Look { top: { style: StyleCard; color: string }; bottom: { style: StyleCard; color: string }; reason?: string }
+export interface Look {
+  top: { style: StyleCard; color: string }; bottom: { style: StyleCard; color: string }; reason?: string;
+  /** what the look was built around: something in the cart, a style the store looked at, or a past order */
+  source?: 'cart' | 'viewed' | 'ordered'; anchor?: 'top' | 'bottom';
+}
 export interface HomeResponse {
   store: string; buyAgain: PastOrderCard[]; recommended: StyleCard[]; newStyles: StyleCard[]; looks: Look[];
   openOrders: { id: string; number: string; status: OrderStatus; totalQty: number; placedAt: string; awaitingYou: boolean }[];
@@ -162,7 +168,7 @@ export type LiveEvent =
 
 export const REWARD_TIERS = [
   { at: 1000, name: 'Air fryer' }, { at: 4000, name: '₹4,000 credit note' },
-  { at: 5000, name: 'Bangkok trip for two' }, { at: 10000, name: 'iPhone 18' },
+  { at: 5000, name: 'Bangkok trip for two' }, { at: 10000, name: 'iPhone 18 Pro' },
 ];
 
 /** Best-practice defaults, subject to CITRUS confirmation. Kept in one place so they can be changed. */

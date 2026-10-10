@@ -8,7 +8,7 @@ import { dmy, num } from '../../lib/format';
 import { useT } from '../../lib/i18n';
 import { cart } from '../../state/cart';
 import { colorTotal, seedStyles, sizesOf, spec, useStyle } from '../../state/catalogue';
-import { draft, useOverCount } from '../../state/ui';
+import { draft, recentViews, useOverCount } from '../../state/ui';
 import { useCart } from '../../state/cart';
 import { toast } from '../../state/toast';
 import { Garment, isBottom, isDark } from '../../components/Garment';
@@ -45,6 +45,7 @@ function ProductView({ style }: { style: StyleCard }) {
   const wanted = sp.get('color');
   const color = style.colors.some(c => c.name === wanted) ? wanted! : style.colors.find(c => colorTotal(style, c.name) > 0)?.name ?? style.colors[0]?.name ?? '';
   const src = useDraftSource(style, color);
+  useEffect(() => { recentViews.add(style.id, color); }, [style.id, color]);
   const zs = sizesOf(style);
   const pcs = zs.reduce((a, z) => a + src.get(z), 0);
   const overN = useOverCount(`draft|${style.id}|${color}|`);
@@ -117,21 +118,20 @@ function Pairs({ style, color }: { style: StyleCard; color: string }) {
   const pairs = (list ?? []).slice(0, 4).map(p => {
     const inStock = p.colors.filter(c => colorTotal(p, c.name) > 0);
     const pool = inStock.length ? inStock : p.colors;
-    const named = p.reason?.match(/:\s*([^:]+)$/)?.[1]?.trim();
-    const pick = pool.find(c => c.name === named) ?? pool.find(c => isDark(c.hex) !== dark) ?? pool[0];
-    return { p, c: pick?.name ?? '', why: p.reason?.startsWith('Often') ? p.reason : undefined };
+    const pick = pool.find(c => c.name === p.pairColor) ?? pool.find(c => isDark(c.hex) !== dark) ?? pool[0];
+    return { p, c: pick?.name ?? '', why: p.reason };
   });
   if (!pairs.length) return null;
   return (
     <section className="pairs">
-      <div className="pairs-h"><b>Complete the look</b><span className="muted">{bottom ? 'Shirts that go with this trouser' : 'Trousers that go with this shirt'}</span></div>
+      <div className="pairs-h"><b>Complete the look</b><span className="muted">{bottom ? `Shirts that go with ${color}, picked for your store` : `Trousers that go with ${color}, picked for your store`}</span></div>
       <div className="pairs-row">
         {pairs.map(({ p, c, why }) => (
           <PLink key={p.id} to={productHref(p.id, c)} className="pcard" data={`/api/styles/${p.id}`}>
             <span className="pimg"><Garment spec={spec(p, c)} /></span>
-            <Badges style={p} />
+            <span className="bslot"><Badges style={p} /></span>
             <span className="pnm">{p.name}</span>
-            <span className="pmeta muted"><i className="cdot" style={{ background: p.colors.find(x => x.name === c)?.hex }} />{c}</span>
+            <span className="pmeta"><span className="cpill"><i className="cdot" style={{ background: p.colors.find(x => x.name === c)?.hex }} />{c}</span></span>
             <Price style={p} />
             <span className="pwhy">{why ?? ''}</span>
           </PLink>

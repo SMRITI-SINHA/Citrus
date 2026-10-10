@@ -5,7 +5,9 @@ import { useQuery } from '../../lib/query';
 import { nextTier } from '../../lib/rewards';
 import { useT } from '../../lib/i18n';
 import { dmy, num } from '../../lib/format';
-import type { HomeData, PastOrderCard } from '../../lib/types';
+import type { HomeData, Look, PastOrderCard } from '../../lib/types';
+import { useCart } from '../../state/cart';
+import { recentViews } from '../../state/ui';
 import { lookPart, pastId } from '../../lib/types';
 import { useMe } from '../../state/session';
 import { seedStyles, spec } from '../../state/catalogue';
@@ -32,6 +34,9 @@ export default function Home() {
   useEffect(() => { seedStyles(deals?.items); }, [deals]);
   const best = deals?.items.reduce((a, s) => Math.max(a, s.offer?.pct ?? 0), 0) ?? 0;
   const [reorder, setReorder] = useState<PastOrderCard | null>(null);
+  const cart = useCart();
+  const cartKeys = [...new Set(cart.lines.map(l => `${l.styleId}|${l.color}`))].slice(0, 3).join(',');
+  const { data: looks } = useQuery<Look[]>(`/api/looks?cart=${encodeURIComponent(cartKeys)}&viewed=${encodeURIComponent(recentViews.list().slice(0, 3).join(','))}`, { staleMs: 60_000 });
   useEffect(() => { if (data) { seedStyles(data.recommended); seedStyles(data.newStyles); } }, [data]);
 
   const points = me.points ?? data?.points ?? 0;
@@ -115,20 +120,30 @@ export default function Home() {
         </section>
       )}
 
-      {data && (data.looks?.length ?? 0) > 0 && (
+      {looks && looks.length > 0 && (
         <section>
-          <SecHead title={t('look')} sub={t('lookSub')} />
+          <SecHead title={t('look')} sub="Built from your cart, the styles you looked at and what your store orders" />
           <div style={{ marginTop: 12 }}><Rail label={t('look')}>
-            {data.looks!.map((l, i) => {
+            {looks.map((l, i) => {
               const top = lookPart(l.top), bot = lookPart(l.bottom);
               if (!top.style || !bot.style) return null;
-              return (
-                <PLink key={i} to={productHref(bot.style.id, bot.color)} className="lookcard" data={`/api/styles/${bot.style.id}`}>
-                  <span className="lookimgs"><span className="pimg"><Garment spec={spec(top.style, top.color)} /></span><span className="plus" aria-hidden="true">+</span><span className="pimg"><Garment spec={spec(bot.style, bot.color)} /></span></span>
-                  <span className="lookcap"><b>{top.style.name}</b><span className="muted">{top.color}</span></span>
-                  <span className="lookcap"><b>{bot.style.name}</b><span className="muted">{bot.color}</span></span>
-                  <span className="pwhy">{l.reason ?? ''}</span>
+              const sug = l.anchor === 'bottom' ? top : bot, have = l.anchor === 'bottom' ? bot : top;
+              const tag = l.source === 'cart' ? 'In your cart' : l.source === 'viewed' ? 'You viewed' : 'You ordered';
+              const half = (x: typeof top, isSug: boolean) => (
+                <PLink to={productHref(x.style!.id, x.color)} className={`lookhalf${isSug ? ' sug' : ''}`} data={`/api/styles/${x.style!.id}`} aria-label={`${x.style!.name}, ${x.color}`}>
+                  <span className="pimg"><Garment swatch={false} spec={spec(x.style, x.color)} /></span>
+                  <span className={`lk-tag${isSug ? ' sug' : ''}`}>{isSug ? 'Add this' : tag}</span>
                 </PLink>
+              );
+              return (
+                <div key={i} className="lookcard">
+                  <span className="lookimgs">{half(top, sug === top)}<span className="plus" aria-hidden="true">+</span>{half(bot, sug === bot)}</span>
+                  <PLink to={productHref(sug.style!.id, sug.color)} className="lk-sug" data={`/api/styles/${sug.style!.id}`}>
+                    <span className="lk-name"><b>{sug.style!.name}</b><span className="cpill"><i className="cdot" style={{ background: sug.style!.colors.find(c => c.name === sug.color)?.hex }} />{sug.color}</span></span>
+                    <span className="muted small">with your {have.style!.name}, {have.color}</span>
+                  </PLink>
+                  <span className="pwhy">{l.reason ?? ''}</span>
+                </div>
               );
             })}
           </Rail></div>

@@ -48,3 +48,15 @@ export function useOverCount(prefix: string) {
   useSyncExternalStore(f => { osubs.add(f); return () => { osubs.delete(f); }; }, () => overVer);
   return overStock.count(prefix);
 }
+
+// Styles the store opened recently (newest first), so Complete the look can build around what they are interested in.
+let viewed: string[] = [];
+try { viewed = JSON.parse(sessionStorage.getItem('ct_viewed') ?? '[]'); } catch { /* storage blocked */ }
+export const recentViews = {
+  add(styleId: string, color: string) {
+    const k = `${styleId}|${color}`;
+    viewed = [k, ...viewed.filter(x => x !== k && !x.startsWith(styleId + '|'))].slice(0, 6);
+    try { sessionStorage.setItem('ct_viewed', JSON.stringify(viewed)); } catch { /* fine */ }
+  },
+  list: () => viewed,
+};

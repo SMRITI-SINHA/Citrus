@@ -15,7 +15,7 @@ const ART: Record<number, { file: string; tint: string; tag: string }> = {
 export const rewardArt = (at: number) => ART[at] ?? ART[1000];
 
 /** Photo credits the CC licences require; shown under the reward cards. */
-export const REWARD_CREDITS = 'Photos: KOSIN SUKHUM (CC BY-SA 4.0), Padgriffin (CC BY 4.0), Ashley Pomeroy (CC BY 4.0), via Wikimedia Commons. Prize models may differ.';
+export const REWARD_CREDITS = 'Photos: KOSIN SUKHUM (CC BY-SA 4.0), Padgriffin (CC BY 4.0), Ashley Pomeroy (CC BY 4.0), via Wikimedia Commons. iPhone 18 Pro: Apple. Prize models may differ.';
 
 export function RewardPic({ at, name }: { at: number; name: string }) {
   const a = rewardArt(at);
