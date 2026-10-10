@@ -1,12 +1,13 @@
-// Every order across distributors: search by order no., SO no., store or code; filter by status.
+// Every order across distributors (Shopify index-table pattern): status tabs, search, one table, load more.
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import type { Order } from '@citrus/shared';
 import { retailerLabel } from '@citrus/shared';
 import { usePaged } from '../../lib/query';
+import { num } from '../../lib/format';
 import { Icon } from '../../components/Icon';
 import { ErrorNote } from '../../components/Bits';
-import { OrdersTable } from './shared';
+import { OrdersTable, PageHeader } from './shared';
 
 const FILTERS: [string, string][] = [
   ['', 'All'], ['attention', 'Needs attention'], ['review', 'With distributor'], ['modified', retailerLabel('modified')],
@@ -25,22 +26,34 @@ export default function AdminOrders() {
   const did = sp.get('distributorId');
   const qs = new URLSearchParams({ ...(sp.get('q') ? { q: sp.get('q')! } : {}), ...(status ? { status } : {}), ...(did ? { distributorId: did } : {}) }).toString();
   const { items, next, more, busy, error, refresh } = usePaged<Order>(`/api/admin/orders${qs ? `?${qs}` : ''}`);
+  const known = FILTERS.some(([v]) => v === status);
   return (
     <>
-      <h1 className="title">Orders</h1>
-      <div className="card panel">
-        <label className="search" style={{ minHeight: 44 }}><Icon name="search" /><span className="sr">Search orders</span>
-          <input type="search" placeholder="Order no., SO no., store or code" value={q} onChange={e => setQ(e.target.value)} /></label>
-        <div className="chips" role="group" aria-label="Filter by status">
+      <PageHeader title="Orders" sub="Every order across distributors. Search by order number, SO number, store or store code." />
+      <section className="ap-card">
+        <div className="ap-tabs" role="group" aria-label="Filter by status">
           {FILTERS.map(([v, l]) => (
-            <button type="button" key={v} className="chip" aria-pressed={status === v}
-              onClick={() => setSp(p => { const n = new URLSearchParams(p); if (v) n.set('status', v); else n.delete('status'); return n; }, { replace: true })}>{l}</button>
+            <button type="button" key={v} className="ap-tab" aria-pressed={status === v}
+              onClick={() => setSp(p => { const n = new URLSearchParams(p); if (v) n.set('status', v); else n.delete('status'); return n; }, { replace: true })}>
+              {l}{status === v && items && <span className="ap-count num">{num(items.length)}{next ? '+' : ''}</span>}
+            </button>
           ))}
+          {!known && <button type="button" className="ap-tab" aria-pressed="true">{retailerLabel(status as Order['status']) ?? status}{items && <span className="ap-count num">{num(items.length)}</span>}</button>}
         </div>
-        {did && <div className="row"><span className="status s-info">Distributor: {sp.get('dname') ?? did}</span><button type="button" className="linkbtn" onClick={() => setSp(p => { const n = new URLSearchParams(p); n.delete('distributorId'); n.delete('dname'); return n; }, { replace: true })}>Show all distributors</button></div>}
-        {error && !items ? <ErrorNote error={error} onRetry={refresh} /> : <OrdersTable orders={items} />}
-        {next && <div className="row" style={{ justifyContent: 'center' }}><button type="button" className="btn sec" onClick={more} disabled={busy}>{busy ? 'Loading…' : 'Show more'}</button></div>}
-      </div>
+        <div className="ap-toolbar">
+          <label className="ap-search"><Icon name="search" size={16} /><span className="sr">Search orders</span>
+            <input type="search" placeholder="Search orders" value={q} onChange={e => setQ(e.target.value)} /></label>
+          {did && <span className="ap-fchip">Distributor: <b>{sp.get('dname') ?? did}</b>
+            <button type="button" aria-label="Show all distributors" onClick={() => setSp(p => { const n = new URLSearchParams(p); n.delete('distributorId'); n.delete('dname'); return n; }, { replace: true })}><Icon name="x" size={12} /></button></span>}
+        </div>
+        {error && !items ? <div className="ap-card-b"><ErrorNote error={error} onRetry={refresh} /></div> : <OrdersTable orders={items} empty={q ? `No orders match “${q}”.` : 'No orders in this view.'} />}
+        {items && items.length > 0 && (
+          <div className="ap-foot">
+            <span className="num">{num(items.length)} order{items.length === 1 ? '' : 's'}{next ? ' shown' : ''}</span>
+            {next && <button type="button" className="ap-btn" onClick={more} disabled={busy}>{busy ? 'Loading…' : 'Load more'}</button>}
+          </div>
+        )}
+      </section>
     </>
   );
 }

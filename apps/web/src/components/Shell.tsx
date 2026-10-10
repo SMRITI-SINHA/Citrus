@@ -14,8 +14,9 @@ import { session } from '../state/session';
 import { Icon, type IconName } from './Icon';
 import { PLink } from './PLink';
 import { tradeRate } from './Price';
+import '../panel-admin.css';
 
-interface NavItem { to: string; icon: IconName; label: string; badge?: number; match: RegExp; /** false: rail only, not in the phone tab bar */ tab?: boolean }
+interface NavItem { to: string; icon: IconName; label: string; badge?: number; match: RegExp; /** false: rail only, not in the phone tab bar */ tab?: boolean; /** rail group heading (admin and distributor frames) */ section?: string }
 
 function useOnline() {
   return useSyncExternalStore(f => { window.addEventListener('online', f); window.addEventListener('offline', f); return () => { window.removeEventListener('online', f); window.removeEventListener('offline', f); }; }, () => navigator.onLine);
@@ -90,20 +91,22 @@ function useScrolled() {
   return on;
 }
 
-function Frame({ nav, header, foot, children, after }: { nav: NavItem[]; header: ReactNode; foot: ReactNode; children: ReactNode; after?: ReactNode }) {
+function Frame({ nav, header, foot, children, after, cls, brand }: { nav: NavItem[]; header: ReactNode; foot: ReactNode; children: ReactNode; after?: ReactNode; cls?: string; brand?: ReactNode }) {
   const { pathname } = useLocation();
   const online = useOnline();
   const scrolled = useScrolled();
   const navLoading = useNavigation().state === 'loading';
   const isCur = (n: NavItem) => n.match.test(pathname);
   return (
-    <div className="shell">
+    <div className={cls ? `shell ${cls}` : 'shell'}>
       <nav className="rail" aria-label="Main">
-        <Brand />
-        {nav.map(n => (
-          <PLink key={n.to} to={n.to} className="navlink" aria-current={isCur(n) ? 'page' : undefined}>
-            <Icon name={n.icon} /><span>{n.label}</span>{n.badge ? <span className="badge">{num(n.badge)}</span> : null}
-          </PLink>
+        {brand ?? <Brand />}
+        {nav.map((n, i) => (
+          <PLinkGroup key={n.to} head={n.section && n.section !== nav[i - 1]?.section ? n.section : undefined}>
+            <PLink to={n.to} className="navlink" aria-current={isCur(n) ? 'page' : undefined}>
+              <Icon name={n.icon} /><span>{n.label}</span>{n.badge ? <span className="badge">{num(n.badge)}</span> : null}
+            </PLink>
+          </PLinkGroup>
         ))}
         <div className="foot">{foot}</div>
       </nav>
@@ -123,6 +126,34 @@ function Frame({ nav, header, foot, children, after }: { nav: NavItem[]; header:
       {after}
     </div>
   );
+}
+
+function PLinkGroup({ head, children }: { head?: string; children: ReactNode }) {
+  return <>{head && <span className="apf-sec">{head}</span>}{children}</>;
+}
+
+/** Workspace mark at the top of the admin and distributor rails. */
+function PanelBrand({ role }: { role: string }) {
+  return <div className="apf-ws"><span className="apf-logo" aria-hidden="true">C</span><span className="apf-wsn"><b>CITRUS Trade</b><span>{role}</span></span></div>;
+}
+
+/** Admin and distributor rail footer: who is signed in, theme and sign out as quiet icon buttons. */
+function PanelFoot({ me, sub }: { me: Me; sub: string }) {
+  const [th, cycle] = useTheme();
+  const ini = me.name.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]!.toUpperCase()).join('');
+  return (
+    <div className="apf-me">
+      <span className="apf-av" aria-hidden="true">{ini}</span>
+      <span className="apf-mn"><b>{me.name}</b><span>{sub}</span></span>
+      <button type="button" className="apf-ib" onClick={cycle} aria-label={`Theme: ${th}. Change theme`} title={`Theme: ${th === 'system' ? 'auto' : th}`}><Icon name={th === 'dark' ? 'moon' : 'sun'} size={16} /></button>
+      <button type="button" className="apf-ib" onClick={() => session.signOut()} aria-label="Sign out" title="Sign out"><Icon name="logout" size={16} /></button>
+    </div>
+  );
+}
+
+/** Body class while a panel frame is mounted, so sheets (rendered on body) pick up the panel look. */
+function useBodyClass(c: string) {
+  useEffect(() => { document.body.classList.add(c); return () => document.body.classList.remove(c); }, [c]);
 }
 
 function RailFoot({ me, children }: { me: Me; children?: ReactNode }) {
@@ -198,41 +229,56 @@ export function DistributorShell({ me, children }: { me: Me; children: ReactNode
   const { t } = useT();
   const { data: queue } = useQueue();
   const live = useLive();
+  useBodyClass('apf-on');
   const d = me.distributor;
   const n = queue?.filter(o => o.status === 'review').length ?? 0;
   const nav: NavItem[] = [
-    { to: '/queue', icon: 'inbox', label: t('approvals'), badge: n, match: /^\/queue/ },
-    { to: '/history', icon: 'box', label: t('history'), match: /^\/history/ },
+    { to: '/queue', icon: 'inbox', label: t('approvals'), badge: n, match: /^\/queue/, section: 'Orders' },
+    { to: '/history', icon: 'box', label: t('history'), match: /^\/history/, section: 'Orders' },
   ];
+  const { pathname } = useLocation();
+  const cur = nav.find(x => x.match.test(pathname));
   const header = (
     <>
-      <Brand small />
-      <div className="who"><b>{d?.name ?? me.name}</b><span>Distributor{d?.state ? ` · ${d.state}` : ''} · {n} waiting</span></div>
-      <div className="acts"><span className={`live-dot${live ? ' on' : ''}`} title={live ? 'Live' : 'Reconnecting'} aria-label={live ? 'Live updates on' : 'Reconnecting'} role="img" /><LangButton /></div>
+      <span className="apf-mlogo" aria-hidden="true">C</span><span className="apf-mname">CITRUS Trade<span>{n} waiting</span></span>
+      <div className="apf-crumb"><span className="apf-c1">{d?.name ?? me.name}</span><Icon name="fwd" size={14} /><b>{cur?.label ?? 'Distributor'}</b><span className="apf-c2">{n} waiting</span></div>
+      <div className="acts"><span className={`apf-live${live ? ' on' : ''}`} role="img" aria-label={live ? 'Live updates on' : 'Reconnecting'} title={live ? 'Live' : 'Reconnecting'}><i />{live ? 'Live' : 'Reconnecting'}</span><LangButton /></div>
     </>
   );
-  return <Frame nav={nav} header={header} foot={<RailFoot me={me}><b>{d?.name}</b>{d?.city}</RailFoot>}>{children}</Frame>;
+  return <Frame cls="apf" brand={<PanelBrand role={`Distributor${d?.state ? ` · ${d.state}` : ''}`} />} nav={nav} header={header} foot={<PanelFoot me={me} sub={d?.city ? `${d.name ?? 'Distributor'} · ${d.city}` : 'Distributor'} />}>{children}</Frame>;
 }
 
 export function AdminShell({ me, children }: { me: Me; children: ReactNode }) {
   const { t } = useT();
   const live = useLive();
+  useBodyClass('apf-on');
   const { data: ov } = useQuery<AdminOverview>('/api/admin/overview', { staleMs: 30_000 });
   const exc = ov?.live.exceptions.filter(e => e.severity !== 'info').length;
+  const { pathname } = useLocation();
   const nav: NavItem[] = [
-    { to: '/admin', icon: 'chart', label: t('overview'), match: /^\/admin\/?$/ },
-    { to: '/admin/orders', icon: 'file', label: t('orders'), match: /^\/admin\/orders/ },
-    { to: '/admin/exceptions', icon: 'alert', label: t('exceptions'), badge: exc, match: /^\/admin\/exceptions/ },
-    { to: '/admin/distributors', icon: 'truck', label: t('distributors'), match: /^\/admin\/distributors/ },
-    { to: '/admin/retailers', icon: 'users', label: t('retailers'), match: /^\/admin\/retailers/ },
-    { to: '/admin/low-stock', icon: 'box', label: t('lowStock'), match: /^\/admin\/low-stock/, tab: false },
+    { to: '/admin', icon: 'chart', label: t('overview'), match: /^\/admin\/?$/, section: 'Operations' },
+    { to: '/admin/orders', icon: 'file', label: t('orders'), match: /^\/admin\/orders/, section: 'Operations' },
+    { to: '/admin/exceptions', icon: 'alert', label: t('exceptions'), badge: exc, match: /^\/admin\/exceptions/, section: 'Operations' },
+    { to: '/admin/distributors', icon: 'truck', label: t('distributors'), match: /^\/admin\/distributors/, section: 'Network' },
+    { to: '/admin/retailers', icon: 'users', label: t('retailers'), match: /^\/admin\/retailers/, section: 'Network' },
+    { to: '/admin/low-stock', icon: 'box', label: t('lowStock'), match: /^\/admin\/low-stock/, tab: false, section: 'Inventory' },
   ];
+  const cur = nav.find(x => x.match.test(pathname));
+  const detail = /^\/admin\/orders\/./.test(pathname);
+  const g = ov?.live.integration.ginesys;
   const header = (
     <>
-      <Brand small />
-      <div className="who"><b>CITRUS control room</b><span>All regions · {new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span></div>
-      <div className="acts"><span className={`status ${live ? 's-ok' : 's-warn'} hide-sm`}>{live ? 'Live' : 'Reconnecting'}</span><LangButton /></div>
+      <span className="apf-mlogo" aria-hidden="true">C</span><span className="apf-mname">CITRUS Trade<span>Admin</span></span>
+      <div className="apf-crumb">
+        <span className="apf-c1">Admin</span><Icon name="fwd" size={14} />
+        {detail ? <><PLink to="/admin/orders" className="apf-c1">{t('orders')}</PLink><Icon name="fwd" size={14} /><b>Order</b></> : <b>{cur?.label ?? t('overview')}</b>}
+      </div>
+      <div className="acts">
+        {g && <PLink to="/admin/exceptions" className={`apf-sys hide-sm g-${g}`} title="Ginesys ERP link"><i />Ginesys {g === 'ok' ? 'operational' : g}</PLink>}
+        <span className={`apf-live${live ? ' on' : ''}`} role="img" aria-label={live ? 'Live updates on' : 'Reconnecting'} title={live ? 'Live updates on' : 'Reconnecting'}><i /><span className="hide-sm">{live ? 'Live' : 'Reconnecting'}</span></span>
+        <LangButton />
+      </div>
     </>
   );
-  return <Frame nav={nav} header={header} foot={<RailFoot me={me}><b>CITRUS Trade</b>Admin</RailFoot>}>{children}</Frame>;
+  return <Frame cls="apf ap" brand={<PanelBrand role="Admin console" />} nav={nav} header={header} foot={<PanelFoot me={me} sub="CITRUS admin" />}>{children}</Frame>;
 }

@@ -14,9 +14,9 @@ import { Icon } from '../../components/Icon';
 import { PLink } from '../../components/PLink';
 import { Sheet } from '../../components/Sheet';
 import { ErrorNote, StatusBadge } from '../../components/Bits';
-import { GroupedLines } from '../../components/OrderLines';
+import { groupOrderLines } from '../../components/OrderLines';
 import { ReasonChips } from '../../components/ReasonChips';
-import { erpText } from './shared';
+import { ErpTag, erpText, PageHeader, Panel } from './shared';
 
 interface Detail {
   order: Order;
@@ -25,6 +25,42 @@ interface Detail {
 }
 
 const ACTOR: Record<string, string> = { retailer: 'Retailer', distributor: 'Distributor', admin: 'CITRUS', erp: 'Ginesys', system: 'System' };
+
+const SZ = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'];
+const szKey = (z: string) => { const i = SZ.indexOf(z); return i >= 0 ? i : 100 + (parseFloat(z) || 0); };
+
+/** Line items as a size matrix: one row per style and colour, one column per size, totals on the right. */
+function SizeMatrix({ lines }: { lines: Order['lines'] }) {
+  const sizes = [...new Set(lines.map(l => l.size))].sort((a, b) => szKey(a) - szKey(b));
+  const groups = groupOrderLines(lines);
+  const colTotal = (z: string) => lines.filter(l => l.size === z).reduce((a, l) => a + l.qty, 0);
+  const pcs = lines.reduce((a, l) => a + l.qty, 0), val = lines.reduce((a, l) => a + l.qty * l.rate, 0);
+  return (
+    <div className="ap-tw">
+      <table className="ap-t ap-mx">
+        <thead><tr><th className="c-sty">Style</th>{sizes.map(z => <th key={z} className="c-sz r">{z}</th>)}<th className="c-pc r">Pcs</th><th className="c-am r">Amount</th></tr></thead>
+        <tbody>{groups.map(g => {
+          const by = new Map(g.ls.map(l => [l.size, l]));
+          const q = g.ls.reduce((a, l) => a + l.qty, 0), v = g.ls.reduce((a, l) => a + l.qty * l.rate, 0);
+          return (
+            <tr key={g.styleId + g.color}>
+              <td className="c-sty"><b>{g.name}</b><span>{g.color} · <span className="ap-id">{g.styleId}</span> · {inr(g.ls[0]?.rate ?? 0)}/pc</span></td>
+              {sizes.map(z => { const l = by.get(z); const was = l?.origQty !== undefined && l.origQty !== l.qty ? l.origQty : undefined; return (
+                <td key={z} className={`c-sz r num${l?.qty ? '' : ' nil'}`} data-sz={z}>{l ? <>{was !== undefined && <s>{was}</s>}{l.qty}</> : '·'}</td>
+              ); })}
+              <td className="c-pc r num"><b>{num(q)}</b></td>
+              <td className="c-am r num">{inr(v)}</td>
+            </tr>
+          );
+        })}</tbody>
+        <tfoot><tr><td className="c-sty">Total</td>{sizes.map(z => <td key={z} className="c-sz r num">{num(colTotal(z))}</td>)}<td className="c-pc r num"><b>{num(pcs)}</b></td><td className="c-am r num"><b>{inr(val)}</b></td></tr></tfoot>
+      </table>
+    </div>
+  );
+}
+
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+const tone = (s: string) => (s === 'done' || s === 'sent' || s === 'delivered' ? 'ok' : s === 'failed' ? 'bad' : s === 'retrying' || s === 'pending' ? 'warn' : 'idle');
 
 export default function AdminOrderDetail() {
   const { id = '' } = useParams();
@@ -40,68 +76,93 @@ export default function AdminOrderDetail() {
     catch (e) { toast(e instanceof ApiError ? e.message : 'Retry failed', { ms: 6000 }); }
     finally { setRetrying(false); }
   }
+  const canRetry = o && (o.erp.state === 'failed' || o.erp.state === 'retrying');
 
   return (
     <>
-      <PLink to="/admin/orders" className="backlink"><Icon name="back" size={16} />Orders</PLink>
       {error && !data && <ErrorNote error={error} onRetry={refresh} />}
-      {!data && !error && <><div className="skel" style={{ height: 60 }} /><div className="agrid"><div className="skel card" style={{ height: 380 }} /><div className="skel card" style={{ height: 380 }} /></div></>}
+      {!data && !error && <><div className="ap-sk" style={{ height: 56, width: 360 }} /><div className="ap-detail"><div className="ap-card ap-skel" style={{ height: 380 }} /><div className="ap-card ap-skel" style={{ height: 380 }} /></div></>}
       {o && (
         <>
-          <div className="sec-h">
-            <div><div className="eyebrow">Order <span className="mono">{o.number}</span>{soShown(o) && <> · SO <span className="mono">{soShown(o)}</span></>}</div>
-              <h1 className="title" style={{ marginTop: 4 }}>{o.store}, {o.city}</h1>
-              <div className="muted small">{num(o.totalQty)} pcs · {inr(o.totalValue)} · placed {dstr(o.placedAt)} ({age(o.placedAt)} ago)</div></div>
-            <StatusBadge status={o.status} />
-          </div>
+          <PageHeader
+            eyebrow={<PLink to="/admin/orders" className="ap-back"><Icon name="back" size={14} />Orders</PLink>}
+            title={<span className="ap-id lg">{o.number}</span>}
+            meta={<span className="ap-ph-pills"><StatusBadge status={o.status} /><ErpTag o={o} /></span>}
+            sub={<>{dstr(o.placedAt)} · {age(o.placedAt)} ago · <b>{o.store}</b>, {o.city} · <span className="num">{num(o.totalQty)} pcs · {inr(o.totalValue)}</span></>}
+            actions={canRetry ? <button type="button" className="ap-btn pri" onClick={retry} disabled={retrying}><Icon name="refresh" size={14} />{retrying ? 'Retrying…' : 'Retry Ginesys sync'}</button> : undefined} />
           {o.status === 'review' && <ActForDistributor o={o} onDone={next => { setCached<Detail>(key, d => d && { ...d, order: next }); upsertOrder(next); refresh(); }} />}
-          <div className="agrid">
-            <div className="stack-lg" style={{ gap: 20, minWidth: 0 }}>
-              <div className="card panel"><h3>Items</h3><GroupedLines lines={o.lines} />
-                {(o.note || o.po) && <div className="muted small">{o.po && <>PO <span className="mono">{o.po}</span>. </>}{o.note && <>Note: “{o.note}”</>}</div>}
-                {o.reason && <div className="note warn"><Icon name="alert" size={16} /><span>{o.status === 'modified' ? 'Change reason' : 'Reason'}: {o.changeReason ?? o.reason}</span></div>}
-              </div>
-              <div className="card panel"><h3>What happened</h3>
-                <ol className="tl">{[...o.events].sort((a, b) => a.at.localeCompare(b.at)).map((e, i) => (
-                  <li key={i}><time dateTime={e.at}>{dstr(e.at)}</time><div><span className="who">{ACTOR[e.actor] ?? e.actor} · {e.type.replace(/_/g, ' ')}</span><div>{e.message}</div></div></li>
-                ))}</ol>
-              </div>
-            </div>
-            <div className="stack-lg" style={{ gap: 20, minWidth: 0 }}>
-              <div className="card panel"><h3>Ginesys</h3>
-                <dl className="kv">
-                  <dt>State</dt><dd>{erpText(o)}</dd>
-                  {o.erp.reservationRef && <><dt>Reservation</dt><dd className="mono">{o.erp.reservationRef}</dd></>}
-                  {o.erp.soNumber && <><dt>{soShown(o) ? 'Sales order' : 'Unauthorised SO'}</dt><dd className="mono">{o.erp.soNumber}</dd></>}
-                  {o.erp.awb && <><dt>AWB</dt><dd className="mono">{o.erp.awb}</dd></>}
-                  <dt>Attempts</dt><dd>{o.erp.attempts}</dd>
-                  {o.erp.lastError && <><dt>Last error</dt><dd className="bad-ink">{o.erp.lastError}</dd></>}
-                  <dt>Distributor</dt><dd>{o.distributorName}</dd>
-                  {o.retailerCode && <><dt>Store code</dt><dd className="mono">{o.retailerCode}</dd></>}
-                </dl>
-                {(o.erp.state === 'failed' || o.erp.state === 'retrying') && <button type="button" className="btn sec sm" style={{ alignSelf: 'flex-start' }} onClick={retry} disabled={retrying}><Icon name="refresh" size={14} />{retrying ? 'Retrying…' : 'Retry now'}</button>}
-              </div>
-              <div className="card panel"><h3>Integration log</h3>
-                {data.integration.length ? (
-                  <div className="cq"><table className="tbl">
-                    <thead><tr><th>Call</th><th>Result</th><th className="r p2">Tries</th><th className="p1">When</th></tr></thead>
-                    <tbody>{data.integration.map((x, i) => (
-                      <tr key={i}><td className="mono xs">{x.topic}{x.last_error && <div className="bad-ink">{x.last_error}</div>}</td>
-                        <td><span className={`status ${x.status === 'done' ? 's-ok' : x.status === 'failed' ? 's-bad' : 's-warn'}`}>{x.status}</span></td>
-                        <td className="r num p2">{x.attempts}</td><td className="nw muted xs p1">{dstr(x.created_at)}</td></tr>
-                    ))}</tbody>
-                  </table></div>
-                ) : <span className="muted small">No Ginesys calls yet.</span>}
-              </div>
-              <div className="card panel"><h3>Messages sent</h3>
-                {data.notifications.length ? data.notifications.map((n, i) => (
-                  <div key={i} className="row" style={{ justifyContent: 'space-between', fontSize: 13 }}>
-                    <span><Icon name={n.channel === 'whatsapp' ? 'wa' : 'phone'} size={14} /> {n.template.replace(/_/g, ' ')} <span className="muted">to {n.to_phone}</span></span>
-                    <span className={`status ${n.status === 'failed' ? 's-bad' : n.status === 'sent' || n.status === 'delivered' ? 's-ok' : 's-info'}`}>{n.status}</span>
+          <div className="ap-detail">
+            <div className="ap-col">
+              <Panel title="Items" flush sub={`${num(o.totalQty)} pieces in ${groupOrderLines(o.lines).length} style${groupOrderLines(o.lines).length === 1 ? '' : 's'}`}>
+                <SizeMatrix lines={o.lines} />
+                {(o.note || o.po || o.reason) && (
+                  <div className="ap-notes">
+                    {o.po && <div><span>PO</span><span className="ap-id">{o.po}</span></div>}
+                    {o.note && <div><span>Note</span>“{o.note}”</div>}
+                    {o.reason && <div className="warn"><span>{o.status === 'modified' ? 'Change reason' : 'Reason'}</span>{o.changeReason ?? o.reason}</div>}
                   </div>
-                )) : <span className="muted small">No messages for this order.</span>}
-              </div>
+                )}
+              </Panel>
+              <Panel title="Activity">
+                <ol className="ap-tl">{[...o.events].sort((a, b) => b.at.localeCompare(a.at)).map((e, i) => (
+                  <li key={i} className={`a-${e.actor}`}>
+                    <span className="dot" aria-hidden="true" />
+                    <div className="m"><div className="h"><b>{ACTOR[e.actor] ?? e.actor}</b><span>{e.type.replace(/_/g, ' ')}</span></div><p>{e.message}</p></div>
+                    <time dateTime={e.at}>{dstr(e.at)}</time>
+                  </li>
+                ))}</ol>
+              </Panel>
             </div>
+            <aside className="ap-col">
+              <Panel title="Status">
+                <dl className="ap-kv">
+                  <dt>Retailer sees</dt><dd><StatusBadge status={o.status} /></dd>
+                  <dt>Placed</dt><dd>{dstr(o.placedAt)}</dd>
+                  <dt>Updated</dt><dd>{dstr(o.updatedAt)}</dd>
+                  {o.collection && <><dt>Collection</dt><dd>{o.collection}</dd></>}
+                  <dt>Points</dt><dd className="num">{num(o.totalPoints)}</dd>
+                </dl>
+              </Panel>
+              <Panel title="Retailer">
+                <div className="ap-ent"><span className="ap-av">{o.store.split(/\s+/).slice(0, 2).map(w => w[0]).join('')}</span><span><b>{o.store}</b><span>{o.city}{o.owner ? ` · ${o.owner}` : ''}</span></span></div>
+                {o.retailerCode && <dl className="ap-kv"><dt>Store code</dt><dd className="ap-id">{o.retailerCode}</dd></dl>}
+              </Panel>
+              <Panel title="Distributor">
+                <div className="ap-ent"><span className="ap-av"><Icon name="truck" size={14} /></span><span><b>{o.distributorName}</b><span>Approval target {POLICY.approvalSlaHours} h</span></span></div>
+              </Panel>
+              <Panel title="Ginesys sync" action={<ErpTag o={o} />}>
+                <dl className="ap-kv">
+                  <dt>State</dt><dd>{erpText(o)}</dd>
+                  {o.erp.reservationRef && <><dt>Reservation</dt><dd className="ap-id">{o.erp.reservationRef}</dd></>}
+                  {o.erp.soNumber && <><dt>{soShown(o) ? 'Sales order' : 'Unauth. SO'}</dt><dd className="ap-id">{o.erp.soNumber}</dd></>}
+                  {o.erp.awb && <><dt>AWB</dt><dd className="ap-id">{o.erp.awb}</dd></>}
+                  <dt>Attempts</dt><dd className="num">{o.erp.attempts}</dd>
+                  {o.erp.lastError && <><dt>Last error</dt><dd className="bad-ink">{o.erp.lastError}</dd></>}
+                </dl>
+                {data.integration.length > 0 && (
+                  <ul className="ap-log">{data.integration.map((x, i) => (
+                    <li key={i}>
+                      <span className={`ap-erp t-${tone(x.status)}`}><i /></span>
+                      <span className="m"><b>{x.topic}</b><span>{dstr(x.created_at)} · {x.attempts} attempt{x.attempts === 1 ? '' : 's'}{x.request_id ? <> · <span className="ap-id">{x.request_id}</span></> : null}</span>{x.last_error && <span className="bad-ink">{x.last_error}</span>}</span>
+                      <span className={`ap-pill t-${tone(x.status)}`}>{cap(x.status)}</span>
+                    </li>
+                  ))}</ul>
+                )}
+                {!data.integration.length && <span className="muted small">No Ginesys calls yet.</span>}
+                {canRetry && <button type="button" className="ap-btn" onClick={retry} disabled={retrying}><Icon name="refresh" size={14} />{retrying ? 'Retrying…' : 'Retry now'}</button>}
+              </Panel>
+              <Panel title="Notifications" count={data.notifications.length}>
+                {data.notifications.length ? (
+                  <ul className="ap-log">{data.notifications.map((n, i) => (
+                    <li key={i}>
+                      <span className="ap-nic"><Icon name={/whatsapp/i.test(n.channel) ? 'wa' : 'phone'} size={14} /></span>
+                      <span className="m"><b>{cap(n.template.replace(/_/g, ' '))}</b><span>{n.channel} · {n.to_phone} · {dstr(n.created_at)}</span></span>
+                      <span className={`ap-pill t-${tone(n.status)}`}>{cap(n.status)}</span>
+                    </li>
+                  ))}</ul>
+                ) : <span className="muted small">No messages for this order.</span>}
+              </Panel>
+            </aside>
           </div>
         </>
       )}
@@ -141,15 +202,15 @@ function ActForDistributor({ o, onDone }: { o: Order; onDone: (o: Order) => void
 
   const verb = confirm?.action === 'approve' ? 'Approve' : confirm?.action === 'reject' ? 'Reject' : 'Send changes';
   return (
-    <div ref={ref} className="card panel actfor">
-      <div className="sec-h"><div><h3>Waiting for {o.distributorName}</h3>
+    <div ref={ref} className="ap-callout actfor">
+      <div className="ap-callout-h"><span className="ap-callout-ic"><Icon name="inbox" size={16} /></span><div><h3>Waiting for {o.distributorName}{overdue && <span className="ap-pill t-bad">Overdue</span>}</h3>
         <div className="sub">{overdue ? `Over the ${POLICY.approvalSlaHours}-hour approval time. ` : ''}If the distributor cannot be reached, CITRUS can decide for them. It is recorded as CITRUS acting for the distributor.</div></div></div>
       {err && <div className="note bad" role="alert"><Icon name="alert" size={18} /><div className="grow"><b>Decision not sent</b>{err.message}</div></div>}
       {mode === 'view' && (
         <div className="row">
-          <button type="button" className="btn ok" onClick={() => setConfirm({ action: 'approve' })}><Icon name="check" size={16} />Approve for distributor</button>
-          <button type="button" className="btn sec" onClick={() => { setMode('modify'); setReason(null); }}><Icon name="edit" size={16} />Modify</button>
-          <button type="button" className="btn bad" onClick={() => { setMode('reject'); setReason(null); }}><Icon name="x" size={16} />Reject</button>
+          <button type="button" className="ap-btn pri" onClick={() => setConfirm({ action: 'approve' })}><Icon name="check" size={16} />Approve for distributor</button>
+          <button type="button" className="ap-btn" onClick={() => { setMode('modify'); setReason(null); }}><Icon name="edit" size={16} />Modify</button>
+          <button type="button" className="ap-btn danger" onClick={() => { setMode('reject'); setReason(null); }}><Icon name="x" size={16} />Reject</button>
         </div>
       )}
       {mode === 'modify' && (

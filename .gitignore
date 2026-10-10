@@ -10,3 +10,4 @@ playwright-report
 dump.rdb
 *.rdb
 apps/web/dist-demo
+apps/web/dist-*

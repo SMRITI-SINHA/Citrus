@@ -9,6 +9,7 @@ import { toast } from '../../state/toast';
 import { Icon } from '../../components/Icon';
 import { Sheet } from '../../components/Sheet';
 import { ErrorNote } from '../../components/Bits';
+import { PageHeader } from './shared';
 
 interface RetailerRow { id: string; code: string; store: string; city: string; state: string; distributor: string; activated: boolean; activatedAt?: string; points: number; invite?: string; orders: number; lastOrderAt?: string }
 const STATES = ['Kerala', 'Karnataka', 'Tamil Nadu', 'Andhra Pradesh', 'Telangana', 'Odisha', 'Maharashtra', 'Puducherry', 'Goa'];
@@ -30,37 +31,45 @@ export default function Retailers() {
 
   return (
     <>
-      <h1 className="title">Retailers</h1>
-      <div className="card panel">
-        <label className="search" style={{ minHeight: 44 }}><Icon name="search" /><span className="sr">Search retailers</span>
-          <input type="search" placeholder="Store, city or code" value={q} onChange={e => setQ(e.target.value)} /></label>
-        <div className="row">
-          <label className="fsel"><span className="sr">State</span>
-            <select value={state} onChange={e => setParam('state', e.target.value)}><option value="">All states</option>{(regions?.length ? regions : STATES).map(s => <option key={s}>{s}</option>)}</select></label>
-          <div className="chips" role="group" aria-label="Status">
-            {[['', 'All'], ['active', 'Active'], ['invited', 'Not activated']].map(([v, l]) => <button type="button" key={v} className="chip" aria-pressed={status === v} onClick={() => setParam('status', v)}>{l}</button>)}
-          </div>
+      <PageHeader title="Retailers" sub="Find a store, see whether it has activated and is ordering, and change its mobile when the shop number changes." />
+      <section className="ap-card">
+        <div className="ap-tabs" role="group" aria-label="Status">
+          {[['', 'All stores'], ['active', 'Active'], ['invited', 'Not activated']].map(([v, l]) => (
+            <button type="button" key={v} className="ap-tab" aria-pressed={status === v} onClick={() => setParam('status', v)}>{l}{status === v && items && <span className="ap-count num">{num(items.length)}{next ? '+' : ''}</span>}</button>
+          ))}
         </div>
-        {error && !items ? <ErrorNote error={error} onRetry={refresh} /> : !items ? <div className="skel" style={{ height: 300 }} aria-busy="true" /> : !items.length ? <div className="empty">No stores match.</div> : (
-          <div className="cq">
-            <table className="tbl">
-              <thead><tr><th>Store</th><th className="p3">Distributor</th><th className="p0">Status</th><th className="r p2">Orders</th><th className="p1">Last order</th><th className="r p3">Points</th><th><span className="sr">Actions</span></th></tr></thead>
+        <div className="ap-toolbar">
+          <label className="ap-search"><Icon name="search" size={16} /><span className="sr">Search retailers</span>
+            <input type="search" placeholder="Search store, city or code" value={q} onChange={e => setQ(e.target.value)} /></label>
+          <label className="ap-sel"><span className="sr">State</span>
+            <select value={state} onChange={e => setParam('state', e.target.value)}><option value="">All states</option>{(regions?.length ? regions : STATES).map(s => <option key={s}>{s}</option>)}</select></label>
+        </div>
+        {error && !items ? <div className="ap-card-b"><ErrorNote error={error} onRetry={refresh} /></div> : !items ? <div className="ap-skel-rows" aria-busy="true">{Array.from({ length: 8 }, (_, i) => <i key={i} />)}</div> : !items.length ? <div className="ap-empty"><Icon name="search" size={18} /><span>No stores match.</span></div> : (
+          <div className="ap-tw">
+            <table className="ap-t ap-t-ret">
+              <thead><tr><th className="c-store">Store</th><th className="c-code">Code</th><th className="c-dist">Distributor</th><th className="c-st">Status</th><th className="c-ord r">Orders</th><th className="c-last">Last order</th><th className="c-pts r">Points</th><th className="c-act"><span className="sr">Actions</span></th></tr></thead>
               <tbody>{items.map(r => (
-                <tr key={r.id}>
-                  <td><b>{r.store}</b><div className="muted xs">{r.city} · <span className="mono">{r.code}</span></div><div className="np0 xs">{r.activated ? 'Active' : 'Not activated'}</div></td>
-                  <td className="muted p3">{r.distributor}</td>
-                  <td className="p0">{r.activated ? <span className="status s-ok">Active</span> : <span className="status s-info">Not activated</span>}</td>
-                  <td className="r num p2">{num(r.orders)}</td>
-                  <td className="nw muted p1">{r.lastOrderAt ? dmy(r.lastOrderAt) : '-'}</td>
-                  <td className="r num p3">{num(r.points)}</td>
-                  <td className="r"><button type="button" className="linkbtn" onClick={() => setEdit(r)}>Change mobile</button></td>
+                <tr key={r.id} className="noclick">
+                  <td className="c-store"><span className="ap-store"><b>{r.store}</b><span>{r.city}{r.state ? `, ${r.state}` : ''}</span></span></td>
+                  <td className="c-code"><span className="ap-id">{r.code}</span></td>
+                  <td className="c-dist"><span className="ap-ell" title={r.distributor}>{r.distributor}</span></td>
+                  <td className="c-st">{r.activated ? <span className="ap-pill t-ok">Active</span> : <span className="ap-pill">Invited</span>}</td>
+                  <td className="c-ord r num">{num(r.orders)}</td>
+                  <td className="c-last num">{r.lastOrderAt ? dmy(r.lastOrderAt) : <span className="muted">—</span>}</td>
+                  <td className="c-pts r num">{num(r.points)}</td>
+                  <td className="c-act r"><button type="button" className="ap-btn sm ghost" onClick={() => setEdit(r)}><Icon name="phone" size={14} />Change mobile</button></td>
                 </tr>
               ))}</tbody>
             </table>
           </div>
         )}
-        {next && <div className="row" style={{ justifyContent: 'center' }}><button type="button" className="btn sec" onClick={more} disabled={busy}>{busy ? 'Loading…' : 'Show more'}</button></div>}
-      </div>
+        {items && items.length > 0 && (
+          <div className="ap-foot">
+            <span className="num">{num(items.length)} store{items.length === 1 ? '' : 's'}{next ? ' shown' : ''}</span>
+            {next && <button type="button" className="ap-btn" onClick={more} disabled={busy}>{busy ? 'Loading…' : 'Load more'}</button>}
+          </div>
+        )}
+      </section>
       <PhoneSheet r={edit} onClose={() => setEdit(null)} />
     </>
   );
