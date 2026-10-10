@@ -1558,3 +1558,25 @@ a.cpill{text-decoration:none}
 .hrw-it .rpic.cnote .cn-card{display:none}
 .hrw-it .rpic.cnote::after{content:"₹4K";font-weight:800;font-size:12.5px;color:#065F46}
 @media (max-width:767px){.hero-model{display:none}}
+/* round 14c: NEW / % OFF sit at the end of the name line, so every tile keeps the same rows */
+.ptile .nmrow{display:flex;align-items:center;gap:8px;min-width:0}
+.ptile .nmrow>a{flex:1 1 auto;min-width:0}
+.ptile .nmrow .badges{flex:none;flex-wrap:nowrap;margin:0;gap:4px}
+.ptile .bdg{font-size:10px;padding:3px 8px;border-radius:999px;letter-spacing:.07em}
+.ptile .bdg.new{background:var(--aqua-grad);color:#0B1B34;box-shadow:0 4px 10px -4px rgba(56,211,245,.8)}
+.ptile .bdg.deal{background:linear-gradient(135deg,#10B981,#34D399);color:#fff;box-shadow:0 4px 10px -4px rgba(16,185,129,.7)}
+/* round 14d: NEW / % OFF ride on the colour line (right side), bright and shimmering, never on the photo */
+.colrow .cline-t{display:flex;align-items:center;gap:8px}
+.colrow .cline-t .badges{margin:0 0 0 auto;flex:none;flex-wrap:nowrap;gap:4px}
+.ptile .bdg{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:800;padding:4px 9px;border-radius:999px;letter-spacing:.08em;position:relative;overflow:hidden}
+.ptile .bdg.new{color:#062A2A;background:linear-gradient(120deg,#00E5FF,#2BF5A6 55%,#C6FF3D);box-shadow:0 6px 14px -6px rgba(0,229,255,.9)}
+.ptile .bdg.deal{color:#fff;background:linear-gradient(120deg,#10B981,#22C55E);box-shadow:0 6px 14px -6px rgba(16,185,129,.8)}
+.ptile .bdg::after{content:"";position:absolute;inset:0;background:linear-gradient(100deg,transparent 30%,rgba(255,255,255,.75) 50%,transparent 70%);transform:translateX(-120%);animation:bdgshine 3.6s ease-in-out infinite}
+@keyframes bdgshine{0%,60%{transform:translateX(-120%)}85%,100%{transform:translateX(120%)}}
+@media (prefers-reduced-motion:reduce){.ptile .bdg::after{animation:none}}
+.ptile .prow{position:relative}
+.ptile .bdg.ph-only{display:none}
+@media (max-width:640px){
+  .colrow .cline-t .badges{display:none}
+  .ptile .bdg.ph-only{display:inline-flex;position:absolute;right:0;top:2px}
+}

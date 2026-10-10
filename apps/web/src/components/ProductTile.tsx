@@ -23,13 +23,12 @@ export function ProductTile({ style, color, why, cta }: { style: StyleCard; colo
           <TileReel spec={spec(style, c)} />
         </PLink>
       </div>
-      <Badges style={style} />
       <PLink to={productHref(style.id, c)} tabIndex={-1} style={{ color: 'inherit', textDecoration: 'none' }} data={`/api/styles/${style.id}`}>
         <div className="nm">{style.name}</div>
       </PLink>
       <ColourRow style={style} current={c} />
       <div className="meta"><span className="mono">{style.id}</span> · {style.fit} fit · {style.fabric}</div>
-      <Price style={style} />
+      <div className="prow"><Price style={style} />{style.isNew && <span className="bdg new ph-only"><Icon name="spark" size={11} />NEW</span>}</div>
       <div className="tfoot"><PtsChip n={style.points} per /></div>
       <div className="sizestrip" aria-label="Stock per size">
         {zs.map(z => { const n = avail(style, c, z); return <span key={z} className={`sz${n === 0 ? ' out' : n <= LOW ? ' low' : ''}`}>{z}·{num(n)}</span>; })}
@@ -71,6 +70,7 @@ function ColourRow({ style, current }: { style: StyleCard; current: string }) {
             <b>+{others.length}</b>
           </button>
         )}
+        <Badges style={style} />
       </div>
       {others.length > 0 && (
         <div className="oswatch" aria-label="Other colours">

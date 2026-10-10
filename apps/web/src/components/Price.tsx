@@ -29,7 +29,7 @@ export function Badges({ style }: { style: StyleCard }) {
   return (
     <div className="badges">
       {style.offer && <span className="bdg deal">{style.offer.pct}% OFF</span>}
-      {style.isNew && <span className="bdg new">NEW</span>}
+      {style.isNew && <span className="bdg new"><Icon name="spark" size={11} />NEW</span>}
     </div>
   );
 }
