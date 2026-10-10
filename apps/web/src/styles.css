@@ -1582,3 +1582,42 @@ a.cpill{text-decoration:none}
 .rpic.cnote{padding:0}
 .rpic .voucher{position:absolute;inset:0;width:100%;height:100%}
 .rnudge .rpic.cnote{padding:0}
+
+/* ===== round 15: one theme for the whole app =====
+   Midnight navy (base) · Aqua (every action: buttons, search, NEW, your history) ·
+   Soft gold (rewards, points, highlights, shelf frames) · Rose (only "hurry": few left, needs your answer) ·
+   Green (money in your pocket: margin, % off, in stock). Nothing else. */
+:root{
+  --aqua-grad:linear-gradient(135deg,#3EE0C8 0%,#2CC4F0 55%,#6E9BFF 100%);
+  --cta-grad:var(--aqua-grad);--cta-ink:#0B1B34;--cta-glow:rgba(44,196,240,.6);
+  --gold-grad:linear-gradient(110deg,#F2C14E 0%,#FFE7A3 48%,#E3A72F 100%);--gold-ink:#3A2600;--gold-soft:#FFF6DD;--gold-line:#E9CF8C;
+  --hot:linear-gradient(135deg,#F43F6B,#FF6F91);--hot-glow:rgba(244,63,107,.4);
+  --pts-a:#F2C14E;--pts-b:#E3A72F;--pts-soft:#FFF6DD;--pts-ink:#8A5A00;
+  --glass-ring:linear-gradient(135deg,#3EE0C8,#2CC4F0 50%,#6E9BFF);
+  --glass-bg:linear-gradient(135deg,rgba(255,255,255,.85),rgba(236,251,255,.6));
+  --st-review:#B98200;--st-answer:#E0335F;--st-approved:#0E9FA8;--st-confirmed:#2C7FD8;--st-processing:#4F5BD5;--st-dispatched:#0891B2;--st-delivered:#15803D;--st-rejected:#BE2D52;--st-cancelled:#64748B}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--pts-soft:#33290F;--pts-ink:#F6D57A;--gold-soft:#2E2610;--glass-bg:linear-gradient(135deg,rgba(30,40,56,.8),rgba(20,34,48,.6));--cta-glow:rgba(44,196,240,.35);
+  --st-review:#F2C14E;--st-answer:#FF7C9C;--st-approved:#5EE6E0;--st-confirmed:#7DB5FF;--st-processing:#A3AAFF;--st-dispatched:#5CD3EE;--st-delivered:#5BD38A;--st-rejected:#FF8DA8;--st-cancelled:#A3ADBD}}
+:root[data-theme="dark"]{--pts-soft:#33290F;--pts-ink:#F6D57A;--gold-soft:#2E2610;--glass-bg:linear-gradient(135deg,rgba(30,40,56,.8),rgba(20,34,48,.6));--cta-glow:rgba(44,196,240,.35);
+  --st-review:#F2C14E;--st-answer:#FF7C9C;--st-approved:#5EE6E0;--st-confirmed:#7DB5FF;--st-processing:#A3AAFF;--st-dispatched:#5CD3EE;--st-delivered:#5BD38A;--st-rejected:#FF8DA8;--st-cancelled:#A3ADBD}
+
+/* actions: aqua glass button with navy text */
+.addbtn{background:var(--cta-grad);color:var(--cta-ink);text-shadow:none;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -2px 6px rgba(10,60,110,.15),0 10px 22px -12px var(--cta-glow),0 2px 6px -3px var(--cta-glow)}
+.addbtn:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.6),inset 0 -2px 6px rgba(10,60,110,.15),0 14px 28px -12px var(--cta-glow)}
+
+/* points: gold, same as the prizes they buy */
+.vchip.pts,.tagx.pts,.mc-pts,.stile.pts .sv{background:var(--gold-grad);color:var(--gold-ink);box-shadow:0 4px 14px -6px rgba(227,167,47,.7)}
+.vchip.pts svg{color:#8A5A00}
+
+/* NEW: aqua, like every "fresh / do this" cue */
+.ptile .bdg.new{background:var(--aqua-grad);color:#0B1B34;box-shadow:0 6px 14px -6px rgba(44,196,240,.85)}
+
+/* insight note: aqua glass */
+.ptile .why svg{color:#fff}
+
+/* shelf circles: soft gold frame that lifts the photo */
+.mq .shelf .sc{padding:3.5px;background:linear-gradient(145deg,#F7E7B8,#D8B25E 45%,#F2DCA0 75%,#C99A3D);
+  box-shadow:0 0 0 1px rgba(216,178,94,.35),0 12px 26px -14px rgba(176,132,40,.6)}
+.mq .shelf .sc .ph{inset:3.5px;box-shadow:0 0 0 2px var(--surface)}
+.mq .shelf:hover .sc{box-shadow:0 0 0 1px rgba(216,178,94,.55),0 0 18px rgba(242,193,78,.35),0 16px 30px -14px rgba(176,132,40,.7)}
