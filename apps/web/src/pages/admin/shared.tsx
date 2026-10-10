@@ -109,7 +109,7 @@ export function OrdersTable({ orders, empty = 'No orders match.' }: { orders: Or
         <tbody>{orders.map(o => {
           const href = `/admin/orders/${encodeURIComponent(o.id)}`;
           return (
-            <tr key={o.id} className={o.erp.state === 'failed' ? 'row-bad clickrow' : 'clickrow'} onClick={e => { if (!(e.target as HTMLElement).closest('a,button')) nav(href, { viewTransition: true }); }}>
+            <tr key={o.id} className={o.erp.state === 'failed' ? 'row-bad clickrow' : 'clickrow'} onClick={e => { if (!(e.target as HTMLElement).closest('a,button')) nav(href); }}>
               <td className="mono nw p0"><PLink to={href} data={`/api/admin/orders/${o.id}`}>{o.number}</PLink></td>
               <td><PLink to={href} className="np0 mono xs">{o.number}</PLink>{o.store}<div className="muted xs">{o.city}</div></td>
               <td className="muted p4">{o.distributorName}</td>

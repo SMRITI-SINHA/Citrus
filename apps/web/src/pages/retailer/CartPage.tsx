@@ -17,8 +17,9 @@ import { Garment } from '../../components/Garment';
 import { Icon } from '../../components/Icon';
 import { PLink } from '../../components/PLink';
 import { ContactButtons } from '../../components/Contact';
-import { enterNext } from '../../components/QtyGrid';
-import { tradeRate } from '../../components/Price';
+import { enterNext, useStockEntry } from '../../components/QtyGrid';
+import { PcsChip, PtsChip, SaveChip, savePer, tradeRate, ValueTxt } from '../../components/Price';
+import { useOverCount } from '../../state/ui';
 
 type Conflict = StockConflict['lines'];
 interface Group { styleId: string; color: string; lines: CartLine[] }
@@ -63,10 +64,13 @@ export default function CartPage() {
   const pieces = v.pieces;
   const value = v.lines.reduce((a, l) => a + l.qty * tradeRate(styles[l.styleId]), 0);
   const points = v.lines.reduce((a, l) => a + l.qty * (styles[l.styleId]?.points ?? 0), 0);
+  const saved = v.lines.reduce((a, l) => a + l.qty * savePer(styles[l.styleId]), 0);
+  const mrpValue = v.lines.reduce((a, l) => a + l.qty * (styles[l.styleId]?.mrp ?? 0), 0);
+  const overN = useOverCount('cart|');
   const open = conflict?.filter(c => v.qty(c.styleId, c.color, c.size) > c.available) ?? [];
   useEffect(() => { if (conflict && !open.length) { setConflict(null); toast('All fixed. Ready to place'); } }, [conflict, open.length]);
   const flagged = new Set(open.map(c => `${c.styleId}|${c.color}|${c.size}`));
-  const blocked = !!phase || open.length > 0 || !pieces;
+  const blocked = !!phase || open.length > 0 || !pieces || overN > 0;
 
   async function place() {
     if (phase) return; // a double tap never makes two orders
@@ -81,7 +85,7 @@ export default function CartPage() {
       setCached(`/api/orders/${order.id}`, order);
       upsertOrder(order);
       cart.load(true).catch(() => cart.replace({ lines: [], note: '', po: '', updatedAt: new Date().toISOString(), version: c.version + 1 }));
-      nav(`/placed/${order.id}`, { viewTransition: true, replace: true });
+      nav(`/placed/${order.id}`, { replace: true });
     } catch (e) {
       const err = e instanceof ApiError ? e : new ApiError('UNKNOWN', 'Could not place the order.', 0);
       const body = err.body as { code?: string; lines?: Conflict; cart?: Cart } | undefined;
@@ -105,12 +109,6 @@ export default function CartPage() {
     }
   }
 
-  function share() {
-    const lines = groups.map(g => { const s = styles[g.styleId]; return `${s?.name ?? g.styleId} (${g.styleId}), ${g.color}: ${g.lines.map(l => `${l.size}×${l.qty}`).join(', ')}`; });
-    const text = `CITRUS order draft, ${me.retailer?.store ?? ''}\n${lines.join('\n')}\nTotal ${num(pieces)} pcs · ${inr(value)}`;
-    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
-  }
-
   if (!v.ready) return <><h1 className="title">{t('cart')}</h1><div className="stack" aria-busy="true">{[0, 1].map(i => <div key={i} className="skel card" style={{ height: 210 }} />)}</div></>;
   if (!pieces) {
     return (
@@ -124,7 +122,6 @@ export default function CartPage() {
             <PLink to="/catalogue" className="btn sec">{t('browse')} {t('catalogue').toLowerCase()}</PLink>
           </div>
         </div>
-        <ContactButtons context="I'd like to place an order" />
       </>
     );
   }
@@ -178,11 +175,14 @@ export default function CartPage() {
         <aside className="card sum" aria-label={t('orderSummary')}>
           <h3>{t('orderSummary')}</h3>
           <div aria-live="polite" className="stack" style={{ gap: 11 }}>
-            <div className="r"><span>Pieces</span><b className="num">{num(pieces)}</b></div>
-            <div className="r"><span>Styles</span><b className="num">{groups.length}</b></div>
-            <div className="r t"><span>Value</span><span className="num">{inr(value)}</span></div>
-            <div className="r"><span className="muted">At your wholesale rate. GST as per invoice.</span></div>
-            <div className="r"><span>Reward points on this order</span><b className="num" style={{ color: 'var(--citrus-ink)' }}>+{num(points)}</b></div>
+            <div className="sumtiles">
+              <div className="stile pcs"><Icon name="box" size={16} /><span>Pieces</span><b className="num">{num(pieces)}</b><small>{groups.length} style{groups.length === 1 ? '' : 's'}</small></div>
+              <div className="stile pts"><Icon name="gift" size={16} /><span>Points</span><b className="num">+{num(points)}</b><small>on delivery</small></div>
+            </div>
+            <div className="r t"><span>Order value</span><span className="num">{inr(value)}</span></div>
+            <div className="r"><span className="muted">At your trade rate. GST as per invoice.</span></div>
+            {saved > 0 && <div className="r saverow"><span>Scheme savings</span><b className="num">− {inr(saved)}</b></div>}
+            {mrpValue > value && <div className="r marginrow"><span>Your margin at MRP</span><b className="num">{inr(mrpValue - value)} · {Math.round((1 - value / mrpValue) * 100)}%</b></div>}
           </div>
           {points > 0 && <RewardNudge points={me.points ?? 0} adding={points} />}
           <MetaFields distName={dist?.name ?? 'your distributor'} note={v.note} po={v.po} />
@@ -194,14 +194,16 @@ export default function CartPage() {
             </div></div>
           )}
           <button type="button" className="btn block" onClick={place} disabled={blocked} aria-busy={!!phase}>{placeLabel}</button>
-          <button type="button" className="btn sec block" onClick={share}><Icon name="wa" size={16} />{t('shareCart')}</button>
+          {overN > 0 && <span className="bad-ink small" style={{ textAlign: 'center' }}>Fix the red {overN === 1 ? 'size' : 'sizes'} above (more than in stock) to place the order.</span>}
           <span className="muted xs" style={{ textAlign: 'center' }}>We check live stock once more before placing. Tapping twice never creates two orders.</span>
         </aside>
       </div>
-      <ContactButtons context="Question about my CITRUS cart" />
       <div className="mc-sp" aria-hidden="true" />
       <div className="minicart cartbar">
-        <div className="t" aria-live="polite"><b className="num">{inr(value)}</b><span>{num(pieces)} pcs · +{num(points)} pts</span></div>
+        <div className="t" aria-live="polite">
+          <span className="mc-v num">{inr(value)}</span>
+          <span className="mc-c"><span className="mc-pcs num"><Icon name="box" size={12} />{num(pieces)} pcs</span><span className="mc-pts num"><Icon name="gift" size={12} />+{num(points)} pts</span>{saved > 0 && <span className="mc-save num">Saved {inr(saved)}</span>}</span>
+        </div>
         <button type="button" className="btn" onClick={place} disabled={blocked}>{placeLabel}</button>
       </div>
     </>
@@ -270,7 +272,7 @@ function CartLineCard({ g, style, flagged, allGroups, hide }: { g: Group; style?
           <b>{style?.name ?? g.styleId}</b>
           <button type="button" className="rm" onClick={remove} aria-label={`Remove ${style?.name ?? g.styleId}, ${g.color}`}><Icon name="x" size={18} /></button>
         </div>
-        <div className="muted" style={{ fontSize: 12.5 }}><span className="mono">{g.styleId}</span>{style && <> · <span className={style.offer ? 'deal-ink' : ''}>{inr(tradeRate(style))}/pc</span>{style.offer && <> <span className="pr-off">{style.offer.pct}% off</span></>} · +{style.points} pts/pc</>}</div>
+        {style && <div className="vrow cmeta"><b className={`num${style.offer ? ' deal-ink' : ''}`}>{inr(tradeRate(style))}/pc</b>{style.offer && <><s className="muted num small">{inr(style.rate)}</s><span className="pr-off">{style.offer.pct}% off</span></>}<PtsChip n={style.points} per /></div>}
         {style && (
           <div className="cedit">
           <label className="csel"><span className="sw" style={{ background: style.colors.find(c => c.name === g.color)?.hex }} />
@@ -286,39 +288,45 @@ function CartLineCard({ g, style, flagged, allGroups, hide }: { g: Group; style?
       </div>
       <div className="chint">Type any quantity in any size. Tap × on a size, or type 0, to delete it.</div>
       <div className="cgrid" style={{ ['--n' as string]: zs.length }} data-cscope>
-        {zs.map(z => {
-          const lq = v.qty(g.styleId, g.color, z);
-          const n = style ? avail(style, g.color, z) : undefined;
-          const k = `${g.styleId}|${g.color}|${z}`;
-          const note = v.notes[k];
-          const bad = flagged.has(k);
-          const out = n === 0 && !lq;
-          return (
-            <label key={z} className={`cc${bad ? ' flag' : note ? ' capped' : ''}${out ? ' out' : ''}`}>
-              <span className="z">{z}</span>
-              <input className="cin" inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" placeholder={out ? '–' : 'Type'} value={lq || ''} disabled={out}
-                aria-label={`${style?.name ?? g.styleId}, ${g.color}, size ${z}${n !== undefined ? `, ${n} available` : ''}`}
-                onFocus={e => { const el = e.currentTarget; setTimeout(() => { try { el.select(); } catch { /* ignore */ } }, 0); }}
-                onChange={e => cart.set(g.styleId, g.color, z, parseInt(e.target.value.replace(/\D/g, '').slice(0, 4), 10) || 0, style)}
-                onKeyDown={e => enterNext(e, '.cartl', '.cin', '.sum .btn.block')} />
-              <span className={`av${n === 0 ? ' oos' : ''}`}>{n === undefined ? '…' : n === 0 ? 'Out of stock' : n <= LOW ? `${n} left` : `${num(n)} in stock`}</span>
-              {lq > 0 && (
-                <button type="button" className="cdel" aria-label={`Delete size ${z}`} title={`Delete size ${z}`}
-                  onClick={e => { e.preventDefault(); e.stopPropagation(); const was = lq; cart.set(g.styleId, g.color, z, 0, style); toast(`Size ${z} deleted`, { undo: () => cart.set(g.styleId, g.color, z, was, style) }); }}>
-                  <Icon name="x" size={12} />
-                </button>
-              )}
-              {note && <span className="rn" role="status">{note}</span>}
-            </label>
-          );
-        })}
+        {zs.map(z => <CartCell key={z} g={g} z={z} style={style} flagged={flagged} />)}
       </div>
       <div className="cfoot">
-        <span className="num"><b>{num(q)} pcs{style ? ` · ${inr(q * tradeRate(style))}` : ''}</b> <span className="muted">· {q ? (style ? `+${num(q * style.points)} pts` : '') : 'will be removed'}</span></span>
+        <span className="vrow">{q ? <><PcsChip n={q} />{style && <ValueTxt amt={q * tradeRate(style)} />}{style && <SaveChip amt={q * savePer(style)} />}{style && <PtsChip n={q * style.points} />}</> : <span className="muted small">No sizes left. This style will be removed.</span>}</span>
         <span className="acts">
           <button type="button" className="linkbtn" onClick={() => quickAdd.open({ styleId: g.styleId, color: g.color, mode: 'edit' })}>Quick fill</button>
         </span>
       </div>
     </div>
+  );
+}
+
+function CartCell({ g, z, style, flagged }: { g: Group; z: string; style?: StyleCard; flagged: Set<string> }) {
+  const v = useCart();
+  const lq = v.qty(g.styleId, g.color, z);
+  const n = style ? avail(style, g.color, z) : undefined;
+  const k = `${g.styleId}|${g.color}|${z}`;
+  const e = useStockEntry(`cart|${k}`, lq, n ?? Infinity, q => cart.set(g.styleId, g.color, z, q, style));
+  const note = v.notes[k];
+  const bad = flagged.has(k) || e.over !== null;
+  const out = n === 0 && !lq && e.over === null;
+  return (
+    <label className={`cc${bad ? ' flag' : note ? ' capped' : ''}${out ? ' out' : ''}`}>
+      <span className="z">{z}</span>
+      <input className={`cin${e.over !== null ? ' over' : ''}`} inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" placeholder={out ? '–' : 'Type'} value={e.value} disabled={out}
+        aria-invalid={e.over !== null} aria-label={`${style?.name ?? g.styleId}, ${g.color}, size ${z}${n !== undefined ? `, ${n} available` : ''}`}
+        onFocus={ev => { const el = ev.currentTarget; setTimeout(() => { try { el.select(); } catch { /* ignore */ } }, 0); }}
+        onChange={ev => e.onText(ev.target.value)}
+        onKeyDown={ev => enterNext(ev, '.cartl', '.cin', '.sum .btn.block')} />
+      {e.over !== null
+        ? <span className="av oos">Only {num(n ?? 0)} in stock</span>
+        : <span className={`av${n === 0 ? ' oos' : ''}`}>{n === undefined ? '…' : n === 0 ? 'Out of stock' : n <= LOW ? `${n} left` : `${num(n)} in stock`}</span>}
+      {(lq > 0 || e.over !== null) && (
+        <button type="button" className="cdel" aria-label={`Delete size ${z}`} title={`Delete size ${z}`}
+          onClick={ev => { ev.preventDefault(); ev.stopPropagation(); const was = lq; e.onText('0'); cart.set(g.styleId, g.color, z, 0, style); toast(`Size ${z} deleted`, { undo: () => cart.set(g.styleId, g.color, z, was, style) }); }}>
+          <Icon name="x" size={12} />
+        </button>
+      )}
+      {note && e.over === null && <span className="rn" role="status">{note}</span>}
+    </label>
   );
 }

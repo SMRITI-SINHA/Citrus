@@ -46,8 +46,8 @@ export default function Queue() {
   function advance(after: string) {
     const rest = (queue ?? []).filter(o => o.id !== after);
     const wide = window.innerWidth >= 1000;
-    if (rest.length && wide) nav(`/queue/${rest[0].id}`, { replace: true, viewTransition: true });
-    else nav('/queue', { replace: true, viewTransition: true });
+    if (rest.length && wide) nav(`/queue/${rest[0].id}`, { replace: true });
+    else nav('/queue', { replace: true });
   }
 
   return (

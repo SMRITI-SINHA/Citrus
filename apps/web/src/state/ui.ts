@@ -29,3 +29,22 @@ export const quickAdd = {
 export function useQuick() {
   return useSyncExternalStore(f => { qsubs.add(f); return () => { qsubs.delete(f); }; }, () => quick);
 }
+
+// Sizes where the store typed more than is in stock. We never lower a typed number silently:
+// the box turns red, says how many are available, and Add / Place order stay off until the store fixes it.
+const over = new Map<string, number>(); // `${scope}|${styleId}|${color}|${size}` -> typed qty
+let overVer = 0;
+const osubs = new Set<() => void>();
+const oemit = () => { overVer++; osubs.forEach(f => f()); };
+export const overStock = {
+  set(key: string, typed: number | null) {
+    if (typed === null) { if (over.delete(key)) oemit(); } else if (over.get(key) !== typed) { over.set(key, typed); oemit(); }
+  },
+  /** Number of sizes over stock whose key starts with prefix (e.g. "draft|CS-1101|Olive|" or "cart|"). */
+  count: (prefix: string) => [...over.keys()].filter(k => k.startsWith(prefix)).length,
+  clear(prefix: string) { let ch = false; for (const k of [...over.keys()]) if (k.startsWith(prefix)) { over.delete(k); ch = true; } if (ch) oemit(); },
+};
+export function useOverCount(prefix: string) {
+  useSyncExternalStore(f => { osubs.add(f); return () => { osubs.delete(f); }; }, () => overVer);
+  return overStock.count(prefix);
+}

@@ -48,7 +48,7 @@ export function ReorderSheet({ card, onClose }: { card: ReorderRef | null; onClo
       const c = await api.post<Cart>(`/api/cart/reorder/${encodeURIComponent(id)}`);
       cart.replace(c);
       onClose();
-      nav('/cart', { viewTransition: true });
+      nav('/cart');
       toast(`${num(ok)} pcs from ${card?.number ?? id} added. Edit any size below`);
     } catch (e) {
       setErr(e instanceof ApiError ? e : new ApiError('UNKNOWN', String(e), 0));

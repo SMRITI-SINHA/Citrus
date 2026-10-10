@@ -1,7 +1,8 @@
 // Prices the way Indian shoppers read them (Myntra, AJIO, Udaan): the price you pay in bold, the old price struck through,
 // and the saving in green. A CITRUS scheme shows as a green trade rate; without one, the rate is plain and the margin is green.
 import type { StyleCard } from '@citrus/shared';
-import { inr } from '../lib/format';
+import { inr, num } from '../lib/format';
+import { Icon } from './Icon';
 
 /** The trade rate a retailer pays today: the scheme rate when a scheme is running, otherwise the price-list rate. */
 export const tradeRate = (s: Pick<StyleCard, 'rate' | 'offer'> | undefined) => (s ? s.offer?.rate ?? s.rate : 0);
@@ -22,8 +23,33 @@ export function Price({ style, size = 'sm', perPiece }: { style: StyleCard; size
   );
 }
 
-/** The scheme ribbon used on photos and deal cards. */
-export function OfferTag({ style }: { style: StyleCard }) {
-  if (!style.offer) return null;
-  return <span className="tagx deal">{style.offer.pct}% OFF</span>;
+/** Scheme and NEW labels, shown under the photo (never on it, so the garment stays fully visible). */
+export function Badges({ style }: { style: StyleCard }) {
+  if (!style.offer && !style.isNew) return null;
+  return (
+    <div className="badges">
+      {style.offer && <span className="bdg deal">{style.offer.pct}% OFF</span>}
+      {style.isNew && <span className="bdg new">NEW</span>}
+    </div>
+  );
 }
+
+/** Reward points, always in the citrus colour with a gift icon, so they never read like a price or a piece count. */
+export function PtsChip({ n, per, big }: { n: number; per?: boolean; big?: boolean }) {
+  return <span className={`vchip pts${big ? ' big' : ''}`}><Icon name="gift" size={big ? 15 : 13} /><b className="num">+{num(n)}</b> pts{per ? '/pc' : ''}</span>;
+}
+/** Pieces, in navy with a box icon. */
+export function PcsChip({ n, big }: { n: number; big?: boolean }) {
+  return <span className={`vchip pcs${big ? ' big' : ''}`}><Icon name="box" size={big ? 15 : 13} /><b className="num">{num(n)}</b> pcs</span>;
+}
+/** Money saved on schemes, in green. */
+export function SaveChip({ amt, big }: { amt: number; big?: boolean }) {
+  if (amt <= 0) return null;
+  return <span className={`vchip save${big ? ' big' : ''}`}>You save <b className="num">{inr(amt)}</b></span>;
+}
+/** Value: the one number in bold ink. */
+export function ValueTxt({ amt, big }: { amt: number; big?: boolean }) {
+  return <b className={`vval num${big ? ' big' : ''}`}>{inr(amt)}</b>;
+}
+/** Scheme saving per piece against the price-list rate. */
+export const savePer = (s: Pick<StyleCard, 'rate' | 'offer'> | undefined) => (s?.offer ? s.rate - s.offer.rate : 0);

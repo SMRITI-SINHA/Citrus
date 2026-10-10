@@ -1,5 +1,5 @@
 // One adaptive shell per role. Phone: app bar + bottom tab bar (+ mini cart). ≥768px: quiet side rail + wide canvas.
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useLocation, useNavigate, useNavigationType } from 'react-router';
 import type { AdminOverview, Me } from '@citrus/shared';
 import { useQuery } from '../lib/query';
@@ -10,7 +10,6 @@ import { live$ } from '../lib/sse';
 import { useCart } from '../state/cart';
 import { useStyles } from '../state/catalogue';
 import { session } from '../state/session';
-import { contactOf } from './Contact';
 import { Icon, type IconName } from './Icon';
 import { PLink } from './PLink';
 import { tradeRate } from './Price';
@@ -46,31 +45,54 @@ function Brand({ small }: { small?: boolean }) {
   return <div className="brand"><span className="dot">.</span>CITRUS{small ? null : <small>Trade</small>}</div>;
 }
 
-// Back / forward that always work, on every screen. React Router keeps the position in history.state.idx;
-// we remember the furthest position reached so Forward is only offered when there is somewhere to go.
-let furthest = 0;
+// Back/forward inside the app. The demo runs inside a frame where the browser's own history
+// is shared with the host page, so we keep our own list of visited screens and move along it.
+const trail = { paths: [] as string[], pos: -1, moving: null as number | null, key: '' };
+
+/** Go to the previous screen in the app's own trail, or to `fallback` when there is none. */
+export function appBack(nav: (to: string) => void, fallback: string) {
+  const to = trail.paths[trail.pos - 1];
+  if (to === undefined) { nav(fallback); return; }
+  trail.moving = trail.pos - 1; nav(to);
+}
+
 function NavArrows() {
   const nav = useNavigate();
   const loc = useLocation();
   const how = useNavigationType();
-  const idx = (typeof history !== 'undefined' && (history.state as { idx?: number } | null)?.idx) || 0;
-  // Work out how far forward history goes during render, so the arrows are right on the first paint after a navigation.
-  const seen = useRef('');
-  if (seen.current !== loc.key) {
-    seen.current = loc.key;
-    furthest = how === 'PUSH' ? idx : Math.max(furthest, idx); // a fresh navigation clears anything ahead
+  const here = loc.pathname + loc.search;
+  if (trail.key !== loc.key) {
+    trail.key = loc.key;
+    if (trail.moving !== null) { trail.pos = trail.moving; trail.moving = null; }
+    else if (how === 'POP' && trail.paths[trail.pos - 1] === here) trail.pos--;
+    else if (how === 'POP' && trail.paths[trail.pos + 1] === here) trail.pos++;
+    else if (how === 'REPLACE' && trail.pos >= 0) trail.paths[trail.pos] = here;
+    else if (trail.paths[trail.pos] !== here) { trail.paths = trail.paths.slice(0, trail.pos + 1); trail.paths.push(here); trail.pos++; }
   }
+  const go = (d: number) => { const to = trail.paths[trail.pos + d]; if (to === undefined) return; trail.moving = trail.pos + d; nav(to); };
   return (
     <div className="navarrows">
-      <button type="button" className="iconbtn" onClick={() => nav(-1)} disabled={idx <= 0} aria-label="Go back" title="Back"><Icon name="back" /></button>
-      <button type="button" className="iconbtn" onClick={() => nav(1)} disabled={idx >= furthest} aria-label="Go forward" title="Forward"><Icon name="fwd" /></button>
+      <button type="button" className="iconbtn" onClick={() => go(-1)} disabled={trail.pos <= 0} aria-label="Go back" title="Back"><Icon name="back" /></button>
+      <button type="button" className="iconbtn" onClick={() => go(1)} disabled={trail.pos >= trail.paths.length - 1} aria-label="Go forward" title="Forward"><Icon name="fwd" /></button>
     </div>
   );
+}
+
+/** True once the page has scrolled, so the top bar turns frosted over the content sliding under it. */
+function useScrolled() {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const f = () => setOn(window.scrollY > 6);
+    f(); window.addEventListener('scroll', f, { passive: true });
+    return () => window.removeEventListener('scroll', f);
+  }, []);
+  return on;
 }
 
 function Frame({ nav, header, foot, children, after }: { nav: NavItem[]; header: ReactNode; foot: ReactNode; children: ReactNode; after?: ReactNode }) {
   const { pathname } = useLocation();
   const online = useOnline();
+  const scrolled = useScrolled();
   const isCur = (n: NavItem) => n.match.test(pathname);
   return (
     <div className="shell">
@@ -84,7 +106,7 @@ function Frame({ nav, header, foot, children, after }: { nav: NavItem[]; header:
         <div className="foot">{foot}</div>
       </nav>
       <div className="main">
-        <header className="appbar"><NavArrows />{header}</header>
+        <header className={`appbar${scrolled ? ' scrolled' : ''}`}><NavArrows />{header}</header>
         {!online && <div className="netbar" role="status"><Icon name="wifiOff" />You are offline. Everything you change is kept on this phone and sent when you are back online.</div>}
         <main className="content" id="content" tabIndex={-1}>{children}</main>
       </div>
@@ -122,7 +144,6 @@ export function RetailerShell({ me, children, after }: { me: Me; children: React
   const { data: orders } = useMyOrders();
   const needAnswer = orders?.filter(o => o.status === 'modified').length ?? 0;
   const r = me.retailer;
-  const c = contactOf(me);
   const nav: NavItem[] = [
     { to: '/home', icon: 'home', label: t('home'), match: /^\/home/ },
     { to: '/catalogue', icon: 'grid', label: t('catalogue'), match: /^\/(catalogue|product)/ },
@@ -141,15 +162,9 @@ export function RetailerShell({ me, children, after }: { me: Me; children: React
       </div>
     </>
   );
-  const foot = (
-    <RailFoot me={me}>
-      {c.tel && <>
-        <b>{c.name || 'CITRUS'}</b>{c.name ? 'Your CITRUS rep' : 'Sales support'}
-        <div className="row"><a className="btn sec sm" href={c.tel}><Icon name="phone" size={14} />Call</a><a className="btn wa sm" href={c.wa()} target="_blank" rel="noopener noreferrer"><Icon name="wa" size={14} />WhatsApp</a></div>
-      </>}
-    </RailFoot>
-  );
-  const showMini = cartv.pieces > 0 && /^\/(home|catalogue|rewards|orders)/.test(pathname);
+  // The rep's phone and WhatsApp live only on the account screen (Rewards), not on every page, so stores use the app first.
+  const foot = <RailFoot me={me} />;
+  const showMini = cartv.pieces > 0 && /^\/(home|catalogue|product|rewards|orders)/.test(pathname);
   return (
     <Frame nav={nav} header={header} foot={foot} after={<>{showMini && <MiniCart />}{after}</>}>
       {children}
@@ -163,11 +178,14 @@ function MiniCart() {
   const { t } = useT();
   const styles = useStyles(v.lines.map(l => l.styleId));
   const value = v.lines.reduce((a, l) => a + l.qty * tradeRate(styles[l.styleId]), 0);
-  const groups = new Set(v.lines.map(l => l.styleId + '|' + l.color)).size;
+  const points = v.lines.reduce((a, l) => a + l.qty * (styles[l.styleId]?.points ?? 0), 0);
   return (
     <div className="minicart" role="region" aria-label="Cart">
-      <div className="t" aria-live="polite"><b className="num">{num(v.pieces)} pcs · {inr(value)}</b><span>{groups} style{groups === 1 ? '' : 's'} · {t('savedAuto')}</span></div>
-      <PLink to="/cart" className="btn">{t('viewCart')}</PLink>
+      <div className="t" aria-live="polite">
+        <span className="mc-v num">{inr(value)}</span>
+        <span className="mc-c"><span className="mc-pcs num"><Icon name="box" size={12} />{num(v.pieces)} pcs</span><span className="mc-pts num"><Icon name="gift" size={12} />+{num(points)} pts</span></span>
+      </div>
+      <PLink to="/cart" className="btn mc-go">{t('proceedCart')}<Icon name="fwd" size={16} /></PLink>
     </div>
   );
 }

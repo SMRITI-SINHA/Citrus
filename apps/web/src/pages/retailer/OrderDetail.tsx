@@ -1,30 +1,21 @@
 import { useState } from 'react';
 import { useParams } from 'react-router';
-import type { Order, OrderStatus } from '@citrus/shared';
+import type { Order } from '@citrus/shared';
 import { GroupedLines } from '../../components/OrderLines';
-import { POLICY, RETAILER_STEPS, retailerLabel } from '@citrus/shared';
+import { POLICY } from '@citrus/shared';
 import { api, ApiError } from '../../lib/api';
 import { getCached, setCached, useQuery } from '../../lib/query';
 import { dstr, inr, num } from '../../lib/format';
 import { useT } from '../../lib/i18n';
-import { soShown, upsertOrder } from '../../state/orders';
+import { upsertOrder } from '../../state/orders';
 import { toast } from '../../state/toast';
 import { Icon } from '../../components/Icon';
+import { OrderTimeline } from '../../components/OrderTimeline';
 import { PLink } from '../../components/PLink';
 import { ErrorNote, StatusBadge } from '../../components/Bits';
 import { ContactButtons } from '../../components/Contact';
 import { ReorderSheet } from './ReorderSheet';
 import type { ReorderRef } from './ReorderSheet';
-
-const IDX = Object.fromEntries(RETAILER_STEPS.map((s, i) => [s.key, i])) as Record<string, number>;
-
-function when(o: Order, k: OrderStatus): string | undefined {
-  if (k === 'placed') return o.placedAt;
-  // Status times come from the event trail (API event types: reserved, approved, changes_accepted, confirmed, ...).
-  const types: Partial<Record<OrderStatus, string[]>> = { review: ['reserved'], approved: ['approved', 'changes_accepted'] };
-  const want = types[k] ?? [k];
-  return [...o.events].reverse().find(e => want.includes(e.type))?.at;
-}
 
 export default function OrderDetail() {
   const { id = '' } = useParams();
@@ -56,22 +47,11 @@ export default function OrderDetail() {
     } finally { setDeciding(null); }
   }
 
-  const ended = o.status === 'rejected' || o.status === 'cancelled';
-  const cur = o.status === 'modified' ? IDX.review : IDX[o.status] ?? 0;
   const rateOf = (c: { styleId: string; color: string; size: string }) => o.lines.find(l => l.styleId === c.styleId)?.rate ?? 0;
   const nameOf = (sid: string) => o.lines.find(l => l.styleId === sid)?.name ?? sid;
   const dq = o.changes?.reduce((a, c) => a + c.to - c.from, 0) ?? 0;
   const dv = o.changes?.reduce((a, c) => a + (c.to - c.from) * rateOf(c), 0) ?? 0;
   const inWindow = Date.now() - Date.parse(o.placedAt) < POLICY.reorderWindowDays * 864e5;
-
-  const extra = (k: OrderStatus): string => {
-    if (k === 'placed' && o.status === 'placed') return 'Holding your stock';
-    if (k === 'review') return o.distributorName;
-    if (k === 'approved' && o.status === 'approved') return 'Creating your CITRUS order';
-    if (k === 'confirmed' && soShown(o)) return `CITRUS order ${soShown(o)}`;
-    if (k === 'dispatched' && o.erp.awb) return `Courier AWB ${o.erp.awb}`;
-    return '';
-  };
 
   return (
     <>
@@ -103,34 +83,12 @@ export default function OrderDetail() {
             <button type="button" className="btn sec" disabled={!!deciding} onClick={() => decide('decline')}>{t('cancelOrder')}</button>
           </div>
           <span className="muted xs">Nothing goes ahead until you accept. If you haven't decided, we'll remind you. The order is never cancelled without your OK.</span>
-          <ContactButtons compact context={`About the changes ${o.distributorName} suggested to ${o.number}`} />
         </div>
       )}
 
       <div className="ordergrid">
         <div className="card" style={{ padding: 18 }}>
-          <div className="tl">
-            {ended ? (
-              <>
-                {RETAILER_STEPS.slice(0, 2).map(s => (
-                  <div key={s.key} className="st done"><span className="dot"><Icon name="check" size={16} /></span><div><div className="lbl">{s.label}</div><div className="when">{when(o, s.key) ? dstr(when(o, s.key)!) : ''}</div></div></div>
-                ))}
-                <div className="st bad"><span className="dot"><Icon name="x" size={16} /></span><div><div className="lbl">{o.status === 'cancelled' ? 'Cancelled' : `Not approved by ${o.distributorName}`}</div><div className="when">{dstr(o.updatedAt)}{o.reason ? ` · ${o.reason}` : ''}</div></div></div>
-              </>
-            ) : RETAILER_STEPS.map((s, i) => {
-              const isDone = i < cur || o.status === 'delivered' || (i === cur && i === 0 && o.status !== 'placed');
-              const isNow = !isDone && i === cur;
-              const w = when(o, s.key);
-              const ex = extra(s.key);
-              const label = s.key === 'review' && o.status === 'modified' ? `${retailerLabel('modified')}` : s.label;
-              return (
-                <div key={s.key} className={`st${isDone ? ' done' : isNow ? ' now' : ''}`}>
-                  <span className="dot">{isDone && <Icon name="check" size={16} />}</span>
-                  <div><div className="lbl">{label}</div><div className="when">{w ? dstr(w) : isNow ? 'In progress' : ''}{ex ? `${w || isNow ? ' · ' : ''}${ex}` : ''}</div></div>
-                </div>
-              );
-            })}
-          </div>
+          <OrderTimeline o={o} />
         </div>
         <div className="stack" style={{ gap: 14 }}>
           <div className="eyebrow">Updates · also sent on WhatsApp</div>
@@ -145,7 +103,6 @@ export default function OrderDetail() {
             {inWindow && <button type="button" className="btn sec" onClick={() => setReorder({ orderId: o.id, number: o.number, placedAt: o.placedAt })}>{t('reorder')}</button>}
             <button type="button" className="btn sec" onClick={() => window.print()}><Icon name="file" size={16} />Download PDF</button>
           </div>
-          <div className="no-print"><ContactButtons context={`About my order ${o.number}`} /></div>
         </div>
       </div>
       <ReorderSheet card={reorder} onClose={() => setReorder(null)} />

@@ -1,13 +1,15 @@
+import { appBack } from '../../components/Shell';
 import { useEffect } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import type { StyleCard } from '@citrus/shared';
 import { useQuery } from '../../lib/query';
 import type { CataloguePage } from '../../lib/types';
-import { dmy, inr, num } from '../../lib/format';
+import { dmy, num } from '../../lib/format';
 import { useT } from '../../lib/i18n';
 import { cart } from '../../state/cart';
 import { colorTotal, seedStyles, sizesOf, spec, useStyle } from '../../state/catalogue';
-import { draft } from '../../state/ui';
+import { draft, useOverCount } from '../../state/ui';
+import { useCart } from '../../state/cart';
 import { toast } from '../../state/toast';
 import { Garment, isBottom, isDark } from '../../components/Garment';
 import { Icon } from '../../components/Icon';
@@ -15,8 +17,7 @@ import { PLink } from '../../components/PLink';
 import { ColorPicker, productHref } from '../../components/ProductTile';
 import { QtyGrid, useDraftSource } from '../../components/QtyGrid';
 import { ErrorNote } from '../../components/Bits';
-import { HelpCard } from '../../components/Contact';
-import { OfferTag, Price, tradeRate } from '../../components/Price';
+import { Badges, PcsChip, Price, PtsChip, SaveChip, savePer, tradeRate, ValueTxt } from '../../components/Price';
 
 export default function Product() {
   const { id = '' } = useParams();
@@ -46,6 +47,8 @@ function ProductView({ style }: { style: StyleCard }) {
   const src = useDraftSource(style, color);
   const zs = sizesOf(style);
   const pcs = zs.reduce((a, z) => a + src.get(z), 0);
+  const overN = useOverCount(`draft|${style.id}|${color}|`);
+  const inCart = useCart().pieces;
 
   function add() {
     const before = cart.get();
@@ -53,19 +56,18 @@ function ProductView({ style }: { style: StyleCard }) {
     const prev = lines.map(l => ({ ...l, qty: before.qty(l.styleId, l.color, l.size) }));
     const r = cart.add(lines, { [style.id]: style });
     draft.clear(style.id, color);
-    toast(`${num(r.added)} pcs added to cart${r.capped ? `. ${r.capped} size${r.capped > 1 ? 's' : ''} capped at stock` : ''}`, { undo: () => cart.setMany(prev) });
+    toast(r.added ? `${num(r.added)} pcs added${r.capped ? ` (${r.capped} size${r.capped > 1 ? 's' : ''} already at full stock in your cart)` : ''}. Tap Proceed to cart when you're done.` : 'Nothing added: your cart already has all the stock in these sizes.', { undo: () => cart.setMany(prev) });
   }
 
   return (
     <>
       <div className="row" style={{ justifyContent: 'space-between' }}>
-        <button type="button" className="linkbtn backlink" onClick={() => (history.length > 1 ? nav(-1) : nav('/catalogue'))}><Icon name="back" size={18} />{t('catalogue')}</button>
+        <button type="button" className="linkbtn backlink" onClick={() => appBack(nav, '/catalogue')}><Icon name="back" size={18} />{t('catalogue')}</button>
       </div>
       <div className="pdp">
         <div className="gallery">
           <div className="hero">
             <Garment spec={spec(style, color)} />
-            <div className="tags">{style.isNew && <span className="tagx new">NEW</span>}{style.offer && <OfferTag style={style} />}<span className="tagx pts">+{style.points} pts / pc</span></div>
           </div>
             <div className="facts show-lg">
             <div><span className="muted">Fit</span><b>{style.fit}</b></div><div><span className="muted">Fabric</span><b>{style.fabric}</b></div>
@@ -76,6 +78,7 @@ function ProductView({ style }: { style: StyleCard }) {
           <div>
             <div className="eyebrow">{style.category} · NOS · <span className="mono">{style.id}</span></div>
             <h1 style={{ fontSize: 'clamp(24px,2.6vw,32px)', marginTop: 6 }}>{style.name}</h1>
+            <div className="row" style={{ gap: 6, marginTop: 8 }}><Badges style={style} /><PtsChip n={style.points} per /></div>
             <div style={{ marginTop: 8 }}><Price style={style} size="lg" perPiece /></div>
             {style.offer && <div className="dealnote"><b>{style.offer.label}</b> · {style.offer.pct}% off the trade rate{style.offer.ends ? ` until ${dmy(style.offer.ends)}` : ''}</div>}
           </div>
@@ -87,14 +90,14 @@ function ProductView({ style }: { style: StyleCard }) {
             <div className="muted xs">Stock is live from the CITRUS warehouse. Adding to cart does not hold stock; we check again when you place the order.</div>
           </div>
           <div className="stickybuy">
-            <div className="t" aria-live="polite"><b className="num">{num(pcs)} pcs · {inr(pcs * tradeRate(style))}</b><span className="muted">+{num(pcs * style.points)} points</span></div>
-            <button type="button" className="btn" data-gadd disabled={!pcs} onClick={add}>{t('add')}</button>
+            <div className="t vrow" aria-live="polite">{overN > 0 ? <span className="bad-ink small"><b>More than in stock.</b> Fix the red {overN === 1 ? 'size' : 'sizes'} to add.</span> : pcs ? <><PcsChip n={pcs} /><ValueTxt amt={pcs * tradeRate(style)} /><SaveChip amt={pcs * savePer(style)} /><PtsChip n={pcs * style.points} /></> : <span className="muted small">Type quantities above</span>}</div>
+            {inCart > 0 && <PLink to="/cart" className="btn sec">{t('proceedCart')}</PLink>}
+            <button type="button" className="btn" data-gadd disabled={!pcs || overN > 0} onClick={add}>{t('add')}</button>
           </div>
           <div className="facts hide-lg">
             <div><span className="muted">Fit</span><b>{style.fit}</b></div><div><span className="muted">Fabric</span><b>{style.fabric}</b></div>
             <div><span className="muted">Pattern</span><b>{style.pattern}</b></div><div><span className="muted">Points</span><b>+{style.points} per piece</b></div>
           </div>
-          <HelpCard context={`About ${style.name} (${style.id}), ${color}`} line="Not sure about sizes or quantity? Call or WhatsApp your rep." />
         </div>
       </div>
       <Pairs style={style} color={color} />
@@ -125,9 +128,10 @@ function Pairs({ style, color }: { style: StyleCard; color: string }) {
       <div className="pairs-row">
         {pairs.map(({ p, c, why }) => (
           <PLink key={p.id} to={productHref(p.id, c)} className="pcard" data={`/api/styles/${p.id}`}>
-            <span className="pimg"><Garment spec={spec(p, c)} />{p.offer && <span className="pt-tag"><OfferTag style={p} /></span>}</span>
+            <span className="pimg"><Garment spec={spec(p, c)} /></span>
+            <Badges style={p} />
             <span className="pnm">{p.name}</span>
-            <span className="pmeta muted">{c}</span>
+            <span className="pmeta muted"><i className="cdot" style={{ background: p.colors.find(x => x.name === c)?.hex }} />{c}</span>
             <Price style={p} />
             <span className="pwhy">{why ?? ''}</span>
           </PLink>

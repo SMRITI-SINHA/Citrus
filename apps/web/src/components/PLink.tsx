@@ -6,7 +6,7 @@ import { prefetch } from '../lib/query';
 
 type Props = LinkProps & { data?: string | string[]; preloadVisible?: boolean };
 
-export const PLink = forwardRef<HTMLAnchorElement, Props>(function PLink({ to, data, preloadVisible, onMouseEnter, onFocus, onTouchStart, viewTransition = true, ...rest }, fwd) {
+export const PLink = forwardRef<HTMLAnchorElement, Props>(function PLink({ to, data, preloadVisible, onMouseEnter, onFocus, onTouchStart, viewTransition = false, ...rest }, fwd) {
   const ref = useRef<HTMLAnchorElement | null>(null);
   const path = typeof to === 'string' ? to : to.pathname ?? '';
   const warm = () => {

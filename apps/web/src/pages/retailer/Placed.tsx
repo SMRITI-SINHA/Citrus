@@ -1,12 +1,13 @@
 import { useParams } from 'react-router';
 import type { Order } from '@citrus/shared';
 import { useQuery } from '../../lib/query';
-import { hhmm, inr, num } from '../../lib/format';
+import { hhmm, num } from '../../lib/format';
+import { PcsChip, PtsChip, ValueTxt } from '../../components/Price';
 import { useT } from '../../lib/i18n';
 import { Icon } from '../../components/Icon';
 import { PLink } from '../../components/PLink';
 import { ErrorNote } from '../../components/Bits';
-import { ContactButtons } from '../../components/Contact';
+import { OrderTimeline } from '../../components/OrderTimeline';
 
 export default function Placed() {
   const { id = '' } = useParams();
@@ -22,7 +23,8 @@ export default function Placed() {
       <div>
         <div className="eyebrow">Order placed</div>
         <h1 className="title" style={{ marginTop: 4 }}>Order <span className="mono" style={{ fontSize: '.85em' }}>{o.number}</span> is with {dist}</h1>
-        <p className="muted" style={{ marginTop: 6 }}>{num(o.totalQty)} pcs · {inr(o.totalValue)} · {dist} will check it today. You'll get a WhatsApp message when they decide.</p>
+        <div className="vrow" style={{ marginTop: 8 }}><PcsChip n={o.totalQty} /><ValueTxt amt={o.totalValue} /><PtsChip n={o.totalPoints} /></div>
+        <p className="muted" style={{ marginTop: 6 }}>{dist} will check it today. You'll get a WhatsApp message at every step.</p>
       </div>
       <div className="note ok" style={{ width: '100%' }} role="status">
         <Icon name="check" size={18} />
@@ -35,13 +37,10 @@ export default function Placed() {
         <button type="button" className="btn sec" onClick={() => window.print()}><Icon name="file" size={16} />Download PDF</button>
         <PLink to="/home" className="btn sec">Back to home</PLink>
       </div>
-      <div className="eyebrow" style={{ marginTop: 4 }}>{t('whatNext')}</div>
-      <ol className="next">
-        <li><b>{dist} reviews it</b>You'll get WhatsApp when they approve. If they suggest a change, nothing goes ahead without your OK.</li>
-        <li><b>CITRUS confirms the order</b>You get a CITRUS order number on WhatsApp and here.</li>
-        <li><b>Dispatch and delivery</b>Courier tracking on WhatsApp. Reward points show in your account once credited.</li>
-      </ol>
-      <div className="no-print" style={{ width: '100%' }}><ContactButtons context={`About my order ${o.number}`} /></div>
+      <div className="placed-tl">
+        <div className="eyebrow">Live order tracking · updates on its own</div>
+        <OrderTimeline o={o} />
+      </div>
     </div>
   );
 }

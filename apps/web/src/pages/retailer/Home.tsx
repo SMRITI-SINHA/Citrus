@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useDeferredValue, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { POLICY } from '@citrus/shared';
 import { useQuery } from '../../lib/query';
@@ -17,8 +17,8 @@ import { Icon } from '../../components/Icon';
 import { PLink } from '../../components/PLink';
 import { ProductTile, productHref } from '../../components/ProductTile';
 import { CardSkeletons, ErrorNote, SecHead, StatusBadge, TileSkeletons } from '../../components/Bits';
-import { HelpCard } from '../../components/Contact';
 import { ReorderSheet } from './ReorderSheet';
+import { Rail } from '../../components/Rail';
 import { VoiceButton } from './voice';
 
 
@@ -46,7 +46,7 @@ export default function Home() {
       <div className="stack" style={{ gap: 14 }}>
         <section className="hero-b fade">
           <div className="copy">
-            <div className="eyebrow">{t('hello')}, {firstName} · NOS essentials</div>
+            <div className="hero-hi"><span className="hi">{t('hello')}, <b>{firstName}</b></span><span className="nospill"><Icon name="spark" size={14} />NOS essentials</span></div>
             <h1>Pause. Breathe.<br /><em>Restock.</em></h1>
             <p>Your best-sellers are in stock today. Reorder your usual in one tap, or type exactly what you want in each size.</p>
             <div className="acts">
@@ -67,10 +67,8 @@ export default function Home() {
           </PLink>
         )}
         <div className="searchrow">
-          <PLink to="/catalogue?focus=1" className="search" style={{ color: 'var(--muted)', textDecoration: 'none' }} aria-label={t('search')}>
-            <Icon name="search" /><span style={{ flex: 1 }}>{t('search')}</span>
-          </PLink>
-          <VoiceButton onResult={q => nav(`/catalogue?q=${encodeURIComponent(q)}`, { viewTransition: true })} />
+          <HomeSearch />
+          <VoiceButton onResult={q => nav(`/catalogue?q=${encodeURIComponent(q)}`)} />
         </div>
       </div>
 
@@ -80,9 +78,9 @@ export default function Home() {
         <SecHead title={t('buyAgain')} sub={t('buyAgainSub')} />
         <div style={{ marginTop: 12 }}>
           {!data ? (error ? null : <CardSkeletons n={1} h={200} />) : buyAgain.length ? (
-            <div className="hscroll" style={{ gridAutoColumns: 'minmax(260px,80%)' }}>
+            <Rail label="Buy again" style={{ gridAutoColumns: 'minmax(260px,80%)' }}>
               {buyAgain.slice(0, 3).map(p => <BuyAgainCard key={pastId(p)} p={p} onReorder={() => setReorder(p)} />)}
-            </div>
+            </Rail>
           ) : <div className="card empty" style={{ padding: 24 }}><b>Your past orders will show here.</b><br />Start with the catalogue; next time it's one tap.</div>}
         </div>
       </section>
@@ -98,30 +96,29 @@ export default function Home() {
             </span>
             <span className="dealban-art" aria-hidden="true"><img src={linePhoto('casual')} alt="" loading="lazy" /></span>
           </PLink>
-          <div className="hscroll">{deals.items.map(s => <ProductTile key={s.id} style={s} />)}</div>
+          <Rail label="Scheme offers">{deals.items.map(s => <ProductTile key={s.id} style={s} />)}</Rail>
         </section>
       )}
 
       <section>
         <SecHead title={t('recommended')} sub={t('recSub')} action={<PLink to="/catalogue" className="linkbtn" preloadVisible>{t('seeAll')}</PLink>} />
         <div style={{ marginTop: 12 }}>
-          {!data ? <TileSkeletons n={4} scroll /> : <div className="hscroll">{data.recommended.map(s => <ProductTile key={s.id} style={s} why={s.reason} />)}</div>}
+          {!data ? <TileSkeletons n={4} scroll /> : <Rail label={t('recommended')}>{data.recommended.map(s => <ProductTile key={s.id} style={s} why={s.reason} />)}</Rail>}
         </div>
       </section>
 
-      <HelpCard context="Hi, I need help with my CITRUS order" />
 
       {data && data.newStyles.length > 0 && (
         <section>
           <SecHead title={t('newp')} sub={t('newSub')} />
-          <div className="hscroll" style={{ marginTop: 12 }}>{data.newStyles.map(s => <ProductTile key={s.id} style={s} />)}</div>
+          <div style={{ marginTop: 12 }}><Rail label={t('newp')}>{data.newStyles.map(s => <ProductTile key={s.id} style={s} />)}</Rail></div>
         </section>
       )}
 
       {data && (data.looks?.length ?? 0) > 0 && (
         <section>
           <SecHead title={t('look')} sub={t('lookSub')} />
-          <div className="hscroll" style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 12 }}><Rail label={t('look')}>
             {data.looks!.map((l, i) => {
               const top = lookPart(l.top), bot = lookPart(l.bottom);
               if (!top.style || !bot.style) return null;
@@ -134,7 +131,7 @@ export default function Home() {
                 </PLink>
               );
             })}
-          </div>
+          </Rail></div>
         </section>
       )}
 
@@ -153,6 +150,40 @@ export default function Home() {
   );
 }
 
+// Type first, see matches as you type, then go to the catalogue only when you ask for it.
+function HomeSearch() {
+  const { t } = useT();
+  const nav = useNavigate();
+  const [q, setQ] = useState('');
+  const [open, setOpen] = useState(false);
+  const term = useDeferredValue(q.trim());
+  const { data } = useQuery<CataloguePage>(term.length >= 2 ? `/api/catalogue?q=${encodeURIComponent(term)}&limit=5` : null, { staleMs: 60_000 });
+  useEffect(() => { seedStyles(data?.items); }, [data]);
+  const go = () => { const v = q.trim(); nav(v ? `/catalogue?q=${encodeURIComponent(v)}` : '/catalogue'); };
+  const show = open && term.length >= 2 && !!data;
+  return (
+    <form className="hsearch" role="search" onSubmit={e => { e.preventDefault(); go(); }} onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setOpen(false); }}>
+      <label className="search">
+        <Icon name="search" />
+        <input value={q} onChange={e => { setQ(e.target.value); setOpen(true); }} onFocus={() => setOpen(true)} placeholder={t('search')} aria-label={t('search')} enterKeyHint="search" autoComplete="off" />
+        {q && <button type="button" className="hs-clear" onClick={() => { setQ(''); setOpen(false); }} aria-label="Clear search"><Icon name="x" size={16} /></button>}
+        <button type="submit" className="btn citrus sm hs-go">Search</button>
+      </label>
+      {show && (
+        <div className="hs-pop" role="listbox" aria-label="Matching styles">
+          {data.items.length ? data.items.map(s => (
+            <PLink key={s.id} to={productHref(s.id)} className="hs-item" data={`/api/styles/${s.id}`}>
+              <span className="hs-img"><Garment swatch={false} spec={spec(s, s.colors[0]?.name ?? '')} /></span>
+              <span className="grow"><b>{s.name}</b><span className="muted small"> · <span className="mono">{s.id}</span> · {s.colors.length} colour{s.colors.length === 1 ? '' : 's'}</span></span>
+            </PLink>
+          )) : <div className="hs-none muted">No styles match "{term}". Try a colour, fit or code.</div>}
+          {data.items.length > 0 && <button type="submit" className="hs-all">See all {num(data.total ?? data.items.length)} results for "{term}" <Icon name="fwd" size={14} /></button>}
+        </div>
+      )}
+    </form>
+  );
+}
+
 function BuyAgainCard({ p, onReorder }: { p: PastOrderCard; onReorder: () => void }) {
   const { t } = useT();
   const styles = p.styles ?? [];
@@ -165,9 +196,20 @@ function BuyAgainCard({ p, onReorder }: { p: PastOrderCard; onReorder: () => voi
       </div>
       <div className="thumbs">{styles.slice(0, 5).map((s, i) => <div key={i}><Garment swatch={false} spec={{ kind: s.kind ?? 'shirt', pattern: 'Solid', fit: 'Regular', hex: s.hex ?? '#8C919A', name: s.name, color: s.color, styleId: s.styleId }} /></div>)}</div>
       <div style={{ fontSize: 13 }}>{p.totalStyles ?? styles.length} style{(p.totalStyles ?? styles.length) === 1 ? '' : 's'}{p.totalQty ? ` · ${num(p.totalQty)} pcs last time` : ''}</div>
-      {outStyles > 0 ? <div className="note warn" style={{ padding: '7px 10px', fontSize: 12.5 }}><Icon name="alert" size={16} /><span>{outStyles} style{outStyles > 1 ? 's' : ''} out of stock, will be skipped</span></div>
-        : <div className="note ok" style={{ padding: '7px 10px', fontSize: 12.5 }}><Icon name="check" size={16} /><span>Everything in stock</span></div>}
-      <button type="button" className="btn sec" onClick={onReorder}>{t('reorder')}</button>
+      <StockLine p={p} outStyles={outStyles} />
+      <button type="button" className="btn sec" onClick={onReorder} disabled={p.inStockQty === 0}>{p.inStockQty === 0 ? 'Not in stock right now' : t('reorder')}</button>
     </div>
   );
+}
+
+// What can actually be sent again today, so a reorder never surprises the store.
+function StockLine({ p, outStyles }: { p: PastOrderCard; outStyles: number }) {
+  const got = p.inStockQty, all = p.totalQty;
+  const pill = { padding: '7px 10px', fontSize: 12.5 } as const;
+  if (got === 0) return <div className="note bad" style={pill}><Icon name="alert" size={16} /><span><b>Not in stock.</b> None of these styles can be sent right now.</span></div>;
+  if (got !== undefined && got < all) return (
+    <div className="note warn" style={pill}><Icon name="alert" size={16} />
+      <span><b>{num(got)} of {num(all)} pcs in stock.</b> {outStyles > 0 ? `${outStyles} style${outStyles > 1 ? 's' : ''} sold out; ` : ''}some sizes will be skipped.</span></div>
+  );
+  return <div className="note ok" style={pill}><Icon name="check" size={16} /><span><b>All {num(all)} pcs in stock</b></span></div>;
 }

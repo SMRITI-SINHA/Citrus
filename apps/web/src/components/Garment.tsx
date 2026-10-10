@@ -124,7 +124,7 @@ function Img({ src, alt, line, pos }: { src: string; alt: string; line: Line; po
 }
 
 /** One product photo, filling its frame. Shows a swatch of the selected colour unless the photo is of that exact colour. */
-export function Garment({ spec, label, swatch = true }: { spec: GarmentSpec; label?: string; swatch?: boolean }) {
+export function Garment({ spec, label, swatch = false }: { spec: GarmentSpec; label?: string; swatch?: boolean }) {
   useManifest();
   const p = photoFor(spec);
   const alt = label ?? [spec.name, spec.color].filter(Boolean).join(', ');
@@ -146,8 +146,8 @@ export function Outfit({ top, bottom, label }: { top: GarmentSpec; bottom: Garme
   const a = photoFor(top), b = photoFor(bottom);
   return (
     <span className="ph outfit" role="img" aria-label={label ?? `${top.name ?? 'Shirt'}${top.color ? `, ${top.color}` : ''} with ${bottom.name ?? 'trouser'}${bottom.color ? `, ${bottom.color}` : ''}`}>
-      <span className="half"><Img src={a.src} alt="" line={a.line} />{top.color && !a.exact && <span className="ph-sw dot"><i style={{ background: safeHex(top.hex) }} /></span>}</span>
-      <span className="half"><Img src={b.src} alt="" line={b.line} />{bottom.color && !b.exact && <span className="ph-sw dot"><i style={{ background: safeHex(bottom.hex) }} /></span>}</span>
+      <span className="half"><Img src={a.src} alt="" line={a.line} /></span>
+      <span className="half"><Img src={b.src} alt="" line={b.line} /></span>
     </span>
   );
 }

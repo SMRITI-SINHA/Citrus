@@ -82,6 +82,8 @@ export interface Order {
   note?: string; po?: string; reason?: string; changes?: OrderChange[]; changeReason?: string;
   erp: { reservationRef?: string; soNumber?: string; state: ErpSyncState; erpStatus?: string; awb?: string; attempts: number; lastError?: string };
   placedAt: string; updatedAt: string; events: OrderEvent[];
+  /** 'NOS' (never out of stock) or the seasonal collection name; seasonal orders can be reordered only while stock lasts. */
+  collection?: string;
 }
 
 // ---------- requests / responses ----------
@@ -112,6 +114,8 @@ export interface CataloguePage extends Page<StyleCard> {
 export interface PastOrderCard {
   orderId: string; number: string; placedAt: string; status: OrderStatus; totalQty: number; totalValue: number;
   styles: { styleId: string; name: string; color: string; kind?: string; hex?: string }[]; moreStyles: number; inStockStyles: number; totalStyles: number;
+  /** pieces from last time that could be sent again today */
+  inStockQty?: number;
 }
 export interface Look { top: { style: StyleCard; color: string }; bottom: { style: StyleCard; color: string }; reason?: string }
 export interface HomeResponse {

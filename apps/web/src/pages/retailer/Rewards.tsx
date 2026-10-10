@@ -8,7 +8,7 @@ import { seedStyles } from '../../state/catalogue';
 import { Icon } from '../../components/Icon';
 import { ProductTile } from '../../components/ProductTile';
 import { SecHead, TileSkeletons } from '../../components/Bits';
-import { HelpCard } from '../../components/Contact';
+import { Rail } from '../../components/Rail';
 import { useTheme } from '../../components/Shell';
 import { nextTier } from '../../lib/rewards';
 import { REWARD_CREDITS, RewardCards } from '../../components/RewardCards';
@@ -40,7 +40,7 @@ export default function Rewards() {
       <div className="note info"><Icon name="spark" size={18} /><div className="grow"><b>How points work</b>Every piece earns points; new and priority styles earn more. You see the points on every product before you order. Rewards and point values are set by CITRUS each month.</div></div>
       <section>
         <SecHead title="Earn faster" sub="Styles with the most points per piece, in stock now" />
-        <div style={{ marginTop: 12 }}>{data ? <div className="hscroll">{data.items.map(s => <ProductTile key={s.id} style={s} />)}</div> : <TileSkeletons n={4} scroll />}</div>
+        <div style={{ marginTop: 12 }}>{data ? <Rail label="Earn faster">{data.items.map(s => <ProductTile key={s.id} style={s} />)}</Rail> : <TileSkeletons n={4} scroll />}</div>
       </section>
 
       <section className="stack">
@@ -60,7 +60,6 @@ export default function Rewards() {
           <button type="button" className="btn sec" onClick={cycleTheme}><Icon name={theme === 'dark' ? 'moon' : 'sun'} size={16} />{t('theme')}: {theme === 'system' ? 'Auto' : theme === 'dark' ? 'Dark' : 'Light'}</button>
           <button type="button" className="btn sec" onClick={() => session.signOut()}><Icon name="logout" size={16} />{t('signOut')}</button>
         </div>
-        <HelpCard context="Question about CITRUS rewards" />
       </section>
     </>
   );

@@ -48,12 +48,46 @@ const mkOrder = (num: string, lines: OrderLine[], status: OrderStatus, ago: numb
     placedAt: at, updatedAt: at, events: [{ at, type: 'placed', actor: 'retailer', message: `Order ${num} received. Sent to ${DIST.name} for review.` }] };
 };
 const orders: Order[] = PAST_ORDERS.map(p => mkOrder(p.number, mkLines(p.lines), 'delivered', p.daysAgo * 1440));
+// Two seasonal (non-NOS) orders: their styles are no longer stocked, so they can be viewed but not reordered.
+const seasonal = (sid: string, name: string, c: string, rate: number, m: number): OrderLine[] =>
+  SIZES.Shirts.map((z, i) => ({ styleId: sid, name, color: c, size: z, qty: DEFAULT_RATIO.Shirts[i] * m * 2, rate, points: 20 }));
+for (const [num, days, coll, lines] of [
+  ['CT-10297', 96, "Onam Festive '26", [...seasonal('SF-7104', 'Kasavu Border Kurta Shirt', 'Off White', 890, 2), ...seasonal('SF-7108', 'Festive Jacquard Shirt', 'Maroon', 940, 1)]],
+  ['CT-10214', 150, "Summer '26", [...seasonal('SS-6202', 'Resort Linen Shirt', 'Mint', 760, 2)]],
+] as [string, number, string, OrderLine[]][]) orders.push({ ...mkOrder(num, lines, 'delivered', days * 1440), collection: coll });
+for (const o of orders) if (!o.collection) o.collection = 'NOS';
+// Stock has moved since the recent orders: a few sizes from the second one have sold out, and one style from the third is gone.
+{
+  const mine = orders.filter(o => o.retailerId === 'r1' && o.collection === 'NOS');
+  const zero = (o: Order | undefined, styleNo: number, sizes?: string[]) => {
+    const keys = [...new Set(o?.lines.map(l => `${l.styleId}|${l.color}`) ?? [])];
+    const k = keys[styleNo]; if (!k) return;
+    for (const l of o!.lines) if (`${l.styleId}|${l.color}` === k && (!sizes || sizes.includes(l.size))) stock[`${k}|${l.size}`] = 0;
+  };
+  for (const l of mine[0]?.lines ?? []) stock[`${l.styleId}|${l.color}|${l.size}`] = Math.max(stock[`${l.styleId}|${l.color}|${l.size}`] ?? 0, l.qty + 6);
+  zero(mine[1], 0, ['40', '42', '44', 'L', 'XL', 'XXL', '36', '38']);
+  zero(mine[2], 0); zero(mine[2], 1, ['40', '42', 'L', 'XL', '34', '36']);
+}
+// Orders still on their way, one at each stage, so the Orders tab can be filtered by status.
+const step = (o: Order, plan: [string, number, string][]) => { for (const [type, ago, message] of plan) o.events.push({ at: new Date(Date.now() - ago * 60_000).toISOString(), type, actor: type === 'approved' ? 'distributor' : 'erp', message }); o.updatedAt = o.events[o.events.length - 1].at; return o; };
+const so = (o: Order, n: number) => { o.erp.soNumber = `SO/KL/26-27/0${n}`; return o; };
+const live: Order[] = [
+  step(mkOrder('CT-10474', mkLines([['CS-1101', 'White', 1], ['CT-2102', 'Charcoal', 1]]), 'review', 26 * 60), [['reserved', 26 * 60 - 1, 'Stock held. Sent to the distributor.']]),
+  step(mkOrder('CT-10466', mkLines([['CK-3101', 'Navy', 2]]), 'approved', 2 * 1440), [['reserved', 2 * 1440 - 1, 'Stock held.'], ['approved', 2 * 1440 - 200, 'Approved by the distributor.']]),
+  so(step(mkOrder('CT-10459', mkLines([['CS-1105', 'Navy', 1], ['CT-2101', 'Khaki', 1]]), 'confirmed', 3 * 1440), [['reserved', 3 * 1440 - 1, 'Stock held.'], ['approved', 3 * 1440 - 180, 'Approved.'], ['confirmed', 3 * 1440 - 240, 'CITRUS order created.']]), 4811),
+  so(step(mkOrder('CT-10452', mkLines([['CS-1103', 'Stone', 1], ['CK-3102', 'Black', 1]]), 'processing', 5 * 1440), [['reserved', 5 * 1440 - 1, 'Stock held.'], ['approved', 5 * 1440 - 120, 'Approved.'], ['confirmed', 5 * 1440 - 200, 'CITRUS order created.'], ['processing', 4 * 1440, 'Packing at the warehouse.']]), 4797),
+  so(step(mkOrder('CT-10447', mkLines([['CT-2104', 'Indigo', 1], ['CS-1102', 'White', 1]]), 'dispatched', 8 * 1440), [['reserved', 8 * 1440 - 1, 'Stock held.'], ['approved', 8 * 1440 - 90, 'Approved.'], ['confirmed', 8 * 1440 - 150, 'CITRUS order created.'], ['processing', 7 * 1440, 'Packing at the warehouse.'], ['dispatched', 6 * 1440, 'Handed to the courier.']]), 4772),
+  step(mkOrder('CT-10433', mkLines([['CS-1104', 'Sky Blue', 3]]), 'rejected', 26 * 1440), [['reserved', 26 * 1440 - 1, 'Stock held.'], ['rejected', 26 * 1440 - 300, 'Credit limit reached. Please clear the pending invoice and order again.']]),
+];
+live[5].reason = 'Credit limit reached. Please clear the pending invoice and order again.';
+orders.push(...live);
 const queue: Order[] = [
   mkOrder('CT-10479', mkLines([['CS-1102', 'White', 1], ['CT-2102', 'Charcoal', 1]]), 'review', 190, 'Om Sai Collection', 'Thrissur', 'r2'),
   mkOrder('CT-10476', mkLines([['CT-2104', 'Indigo', 2], ['CS-1105', 'Navy', 1], ['CK-3102', 'Black', 1]]), 'review', 302, 'Rajhans Garments', 'Kannur', 'r3'),
   mkOrder('CT-10478', mkLines([['CK-3101', 'Navy', 1]]), 'review', 40, 'Style Point', 'Kottayam', 'r4'),
 ];
 queue[0].note = 'Need before Onam sale';
+queue.push(live[0]);
 const sseClients = new Set<MockRes>();
 const push = (ev: unknown) => { for (const c of sseClients) c.write(`data: ${JSON.stringify(ev)}\n\n`); };
 let failNext = env.STOCK_CONFLICT === '1';
@@ -79,7 +113,9 @@ const bump = () => { cart = { ...cart, updatedAt: new Date().toISOString(), vers
 export async function handle(req: MockReq, res: MockRes) {
   const url = new URL(req.url!, 'http://x');
   const p = url.pathname, m = req.method!;
-  await new Promise(r => setTimeout(r, Number(env.LATENCY ?? 120)));
+  // In the hosted demo the mock runs inside the page: answer at once so tabs switch instantly.
+  const lat = Number(env.LATENCY ?? (typeof window === 'undefined' ? 120 : 0));
+  if (lat) await new Promise(r => setTimeout(r, lat));
   try {
     if (p === '/api/auth/otp' && m === 'POST') {
       const b = await body(req); const phone = String(b.phone ?? '').replace(/\D/g, '').slice(-10);
@@ -116,11 +152,12 @@ export async function handle(req: MockReq, res: MockRes) {
 
     // retailer
     if (p === '/api/home') {
-      const recent = orders.filter(o => o.retailerId === 'r1' && o.status !== 'cancelled').slice(0, 3).map(o => {
+      const recent = orders.filter(o => o.retailerId === 'r1' && o.status === 'delivered').slice(0, 3).map(o => {
         const st = [...new Map(o.lines.map(l => [`${l.styleId}|${l.color}`, l])).values()];
         return { orderId: o.id, number: o.number, placedAt: o.placedAt, status: o.status, totalQty: o.totalQty, totalValue: o.totalValue,
           styles: st.map(l => ({ styleId: l.styleId, name: l.name, color: l.color, kind: byId.get(l.styleId)!.kind, hex: COLORS[l.color] })),
-          inStockStyles: st.filter(l => SIZES[byId.get(l.styleId)!.category].some(z => avail({ ...l, size: z }) > 0)).length, totalStyles: st.length };
+          inStockStyles: st.filter(l => SIZES[byId.get(l.styleId)!.category].some(z => avail({ ...l, size: z }) > 0)).length, totalStyles: st.length,
+          inStockQty: o.lines.reduce((a, l) => a + Math.min(l.qty, avail(l)), 0) };
       });
       return send(res, 200, { buyAgain: recent, recommended: RECOMMENDATIONS.map(r => card(r.styleId, r.reason)), newStyles: STYLES.filter(s => s.isNew).slice(0, 8).map(s => card(s.id)),
         looks: [['CS-1101', 'Sky Blue', 'CT-2101', 'Khaki'], ['CS-1104', 'Navy', 'CT-2102', 'Charcoal'], ['CK-3101', 'Navy', 'CT-2103', 'Charcoal']].map(([a, ac, b, bc]) => ({ top: { style: card(a), color: ac }, bottom: { style: card(b), color: bc } })),

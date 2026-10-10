@@ -1,7 +1,7 @@
 // Quantity entry, built so buyers never tap + fifty times:
 // typed input per size (numeric keypad, select on focus, Enter moves to the next size, capped at live stock),
 // a total split by the store's size ratio, set chips, "Same as last time", Clear, and "Add these sizes in all colours".
-import { useId, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from 'react';
 import type { Category, HomeResponse } from '@citrus/shared';
 import { api } from '../lib/api';
 import { setCached, useQuery } from '../lib/query';
@@ -10,12 +10,12 @@ import { useMyOrders } from '../state/orders';
 import { splitByRatio } from '@citrus/shared';
 import { avail, lastOrderFor, LOW, ratioOf, sizesOf, useStockVersion } from '../state/catalogue';
 import { cart, useCart } from '../state/cart';
-import { draft, useDraft } from '../state/ui';
+import { draft, overStock, useDraft, useOverCount } from '../state/ui';
 import { toast } from '../state/toast';
 import { dmy, inr, num } from '../lib/format';
 import { useT } from '../lib/i18n';
 import { Icon } from './Icon';
-import { tradeRate } from './Price';
+import { PcsChip, PtsChip, SaveChip, savePer, tradeRate, ValueTxt } from './Price';
 
 export interface QtySource { get: (size: string) => number; set: (size: string, q: number) => number; setAll: (m: Record<string, number>) => void; note: (size: string) => string | undefined }
 
@@ -61,7 +61,7 @@ export function enterNext(e: KeyboardEvent<HTMLInputElement>, scopeSel: string, 
   }
 }
 
-export function QtyGrid({ style, color, src, showCopy = true, onCopied }: { style: StyleCard; color: string; src: QtySource; showCopy?: boolean; onCopied?: () => void }) {
+export function QtyGrid({ style, color, src, showCopy = true, onCopied, scope = 'draft' }: { style: StyleCard; color: string; src: QtySource; showCopy?: boolean; onCopied?: () => void; scope?: 'draft' | 'cart' }) {
   useStockVersion();
   useQuery<HomeResponse>('/api/home', { staleMs: 300_000 }); // the store's size mix lives on /api/home
   const { t } = useT();
@@ -75,6 +75,7 @@ export function QtyGrid({ style, color, src, showCopy = true, onCopied }: { styl
   const [total, setTotal] = useState('');
   const totRef = useRef<HTMLInputElement>(null);
   const pcs = zs.reduce((a, z) => a + src.get(z), 0);
+  const overN = useOverCount(`${scope}|${style.id}|${color}|`);
 
   const want = parseInt(total, 10) || 0;
   const preview = want > 0 ? (() => { const out = splitByRatio(want, ratio, caps); return { n: want, out, got: out.reduce((a, b) => a + b, 0) }; })() : null;
@@ -111,35 +112,13 @@ export function QtyGrid({ style, color, src, showCopy = true, onCopied }: { styl
     <div className="qgrid">
       <div className="qhint" id={`${uid}-hint`}><Icon name="edit" size={16} /><span><b>How many pieces?</b> Tap a box and type the number for each size.</span></div>
       <div className="sgrid" data-qscope>
-        {zs.map((z, i) => {
-          const n = caps[i], q = src.get(z), note = src.note(z);
-          return (
-            <div key={z} className={`srow${n === 0 && !q ? ' out' : ''}`}>
-              <span className="s" aria-hidden="true">{z}</span>
-              <span className="a">
-                {n === 0 ? <span className="bad-ink" style={{ fontWeight: 600 }}>{t('out')}</span>
-                  : n <= LOW ? <b className="warn-ink">{t('only', { n })}</b>
-                    : <><b>{num(n)}</b> {t('avail')}</>}
-                {last && <span className="lastq">{t('lastOrder', { n: last.q[z] ?? 0 })}</span>}
-                <span className="meter" aria-hidden="true"><i style={{ width: `${Math.round((n / max) * 100)}%` }} /></span>
-                <span className="rn" role="status">{note}</span>
-              </span>
-              <div className="step">
-                <button type="button" onClick={() => src.set(z, q - 1)} disabled={q <= 0} aria-label={`One less ${z}`} tabIndex={-1}>−</button>
-                <input className="qin" inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" placeholder="Type"
-                  value={q || ''} disabled={n === 0 && !q} aria-label={`Quantity for size ${z}, ${n} available`}
-                  onFocus={e => { const el = e.currentTarget; setTimeout(() => { try { el.select(); } catch { /* ignore */ } }, 0); }}
-                  onChange={e => src.set(z, parseInt(e.target.value.replace(/\D/g, '').slice(0, 4), 10) || 0)}
-                  onKeyDown={e => enterNext(e, '[data-qscope]', '.qin')} />
-                <button type="button" onClick={() => src.set(z, q + 1)} disabled={q >= n} aria-label={`One more ${z}`} tabIndex={-1}>+</button>
-              </div>
-            </div>
-          );
-        })}
+        {zs.map((z, i) => <SizeRow key={z} z={z} n={caps[i]} max={max} q={src.get(z)} note={src.note(z)} last={last?.q[z]} hasLast={!!last} src={src} okey={`${scope}|${style.id}|${color}|${z}`} />)}
       </div>
       <div className="qsum" aria-live="polite">
-        {pcs > 0
-          ? <><b className="num">{num(pcs)} pcs</b> × {inr(tradeRate(style))} = <b className="num">{inr(pcs * tradeRate(style))}</b><span className="muted"> · {zs.filter(z => src.get(z) > 0).map(z => `${z} ${src.get(z)}`).join(' · ')}</span></>
+        {overN > 0
+          ? <span className="bad-ink"><b>{overN === 1 ? '1 size is' : `${overN} sizes are`} more than the stock.</b> Change the red {overN === 1 ? 'box' : 'boxes'} to add to cart.</span>
+          : pcs > 0
+          ? <span className="qsum-row"><PcsChip n={pcs} /><span className="muted num">× {inr(tradeRate(style))}</span><ValueTxt amt={pcs * tradeRate(style)} /><SaveChip amt={pcs * savePer(style)} /><PtsChip n={pcs * style.points} /></span>
           : <span className="muted">Nothing typed yet. Tap any box above and type a number.</span>}
       </div>
       <details className="qfill">
@@ -194,9 +173,8 @@ export function SizeMix({ style }: { style: StyleCard }) {
   const [busy, setBusy] = useState(false);
   const noun = cat.toLowerCase();
   const sum = mix.reduce((a, b) => a + b, 0);
-  const from = info?.source === 'saved' ? 'You set this mix.'
-    : info?.source === 'orders' ? `Your usual ${noun} mix over the last 6 months (${num(info.pieces)} pcs).`
-      : `CITRUS standard mix. Once you have ordered more ${noun}, we will use your own.`;
+  const from = info?.source === 'saved' ? `You set this ${noun} mix. Tap Change to edit it.`
+    : `How your store usually buys ${noun}, from your past orders.`;
 
   async function save(ratio: number[] | null) {
     setBusy(true);
@@ -239,10 +217,58 @@ export function SizeMix({ style }: { style: StyleCard }) {
         <b>Your {noun} size mix</b>
         <button type="button" className="linkbtn" onClick={() => setEdit(mix.map(String))}>Change</button>
       </div>
-      <div className="mixbar" aria-label={`Out of every ${sum} pieces: ${zs.map((z, i) => `${mix[i]} ${z}`).join(', ')}`}>
+      <div className="mixbar" aria-label={`For every ${sum} pieces: ${zs.map((z, i) => `${mix[i]} ${z}`).join(', ')}`}>
         {zs.map((z, i) => <span key={z} style={{ flexGrow: Math.max(mix[i], 0.4) }} className={mix[i] ? '' : 'zero'}><b>{mix[i]}</b><i>{z}</i></span>)}
       </div>
-      <span className="muted xs">Out of every {sum} pieces. {from}</span>
+      <span className="muted xs">{from}</span>
+    </div>
+  );
+}
+
+/** Typed-quantity state for one size. A number above stock is kept as typed (never lowered silently) and flagged red. */
+export function useStockEntry(okey: string, q: number, n: number, set: (v: number) => void) {
+  const [typed, setTyped] = useState<number | null>(null);
+  useEffect(() => () => overStock.set(okey, null), [okey]);
+  useEffect(() => { setTyped(null); overStock.set(okey, null); }, [q, okey]); // changed from outside (fill, clear, undo)
+  const over = typed !== null && typed > n ? typed : null;
+  useEffect(() => { if (typed !== null && typed <= n) { overStock.set(okey, null); set(typed); } }, [n]); // eslint-disable-line react-hooks/exhaustive-deps
+  return {
+    value: over !== null ? String(over) : q ? String(q) : '',
+    over,
+    onText(text: string) {
+      const v = parseInt(text.replace(/\D/g, '').slice(0, 4), 10) || 0;
+      if (v > n) { setTyped(v); overStock.set(okey, v); }
+      else { setTyped(null); overStock.set(okey, null); set(v); }
+    },
+    useMax() { setTyped(null); overStock.set(okey, null); set(n); },
+  };
+}
+
+function SizeRow({ z, n, max, q, note, last, hasLast, src, okey }: { z: string; n: number; max: number; q: number; note?: string; last?: number; hasLast: boolean; src: QtySource; okey: string }) {
+  const { t } = useT();
+  const e = useStockEntry(okey, q, n, v => src.set(z, v));
+  return (
+    <div className={`srow${n === 0 && !q ? ' out' : ''}${e.over !== null ? ' over' : ''}`}>
+      <span className="s" aria-hidden="true">{z}</span>
+      <span className="a">
+        {n === 0 ? <span className="bad-ink" style={{ fontWeight: 600 }}>{t('out')}</span>
+          : n <= LOW ? <b className="warn-ink">{t('only', { n })}</b>
+            : <><b>{num(n)}</b> {t('avail')}</>}
+        {hasLast && <span className="lastq">{t('lastOrder', { n: last ?? 0 })}</span>}
+        <span className="meter" aria-hidden="true"><i style={{ width: `${Math.round((n / max) * 100)}%` }} /></span>
+        {e.over !== null
+          ? <span className="overmsg" role="alert">Only {num(n)} in stock. You typed {num(e.over)}. {n > 0 && <button type="button" className="linkbtn" onClick={e.useMax}>Use {num(n)}</button>}</span>
+          : <span className="rn" role="status">{note}</span>}
+      </span>
+      <div className="step">
+        <button type="button" onClick={() => src.set(z, q - 1)} disabled={q <= 0 || e.over !== null} aria-label={`One less ${z}`} tabIndex={-1}>−</button>
+        <input className={`qin${e.over !== null ? ' over' : ''}`} inputMode="numeric" pattern="[0-9]*" enterKeyHint="next" autoComplete="off" placeholder="Type"
+          value={e.value} disabled={n === 0 && !q && e.over === null} aria-invalid={e.over !== null} aria-label={`Quantity for size ${z}, ${n} available`}
+          onFocus={ev => { const el = ev.currentTarget; setTimeout(() => { try { el.select(); } catch { /* ignore */ } }, 0); }}
+          onChange={ev => e.onText(ev.target.value)}
+          onKeyDown={ev => enterNext(ev, '[data-qscope]', '.qin')} />
+        <button type="button" onClick={() => src.set(z, q + 1)} disabled={q >= n || e.over !== null} aria-label={`One more ${z}`} tabIndex={-1}>+</button>
+      </div>
     </div>
   );
 }
