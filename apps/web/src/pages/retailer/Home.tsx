@@ -205,11 +205,10 @@ function BuyAgainCard({ p, onReorder }: { p: PastOrderCard; onReorder: () => voi
 // What can actually be sent again today, so a reorder never surprises the store.
 function StockLine({ p, outStyles }: { p: PastOrderCard; outStyles: number }) {
   const got = p.inStockQty, all = p.totalQty;
-  const pill = { padding: '7px 10px', fontSize: 12.5 } as const;
-  if (got === 0) return <div className="note bad" style={pill}><Icon name="alert" size={16} /><span><b>Not in stock.</b> None of these styles can be sent right now.</span></div>;
-  if (got !== undefined && got < all) return (
-    <div className="note warn" style={pill}><Icon name="alert" size={16} />
-      <span><b>{num(got)} of {num(all)} pcs in stock.</b> {outStyles > 0 ? `${outStyles} style${outStyles > 1 ? 's' : ''} sold out; ` : ''}some sizes will be skipped.</span></div>
+  const box = (tone: string, icon: 'alert' | 'check', head: string, sub: string) => (
+    <div className={`note ${tone} stockline`}><Icon name={icon} size={16} /><span><b>{head}</b><small>{sub}</small></span></div>
   );
-  return <div className="note ok" style={pill}><Icon name="check" size={16} /><span><b>All {num(all)} pcs in stock</b></span></div>;
+  if (got === 0) return box('bad', 'alert', 'Not in stock', 'None of these styles can be sent now');
+  if (got !== undefined && got < all) return box('warn', 'alert', `${num(got)} of ${num(all)} pcs in stock`, outStyles > 0 ? `${outStyles} style${outStyles > 1 ? 's' : ''} sold out, some sizes skipped` : 'Some sizes will be skipped');
+  return box('ok', 'check', `All ${num(all)} pcs in stock`, 'Same sizes and colours as last time');
 }
