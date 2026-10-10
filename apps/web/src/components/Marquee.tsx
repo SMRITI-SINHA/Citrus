@@ -1,7 +1,7 @@
 // A row that drifts right to left on its own, like a shop window, and never gets in the way:
 // it keeps moving while you scroll or point at it, stops only while a finger is dragging it, has arrows
 // on either side to move it yourself, and picks up again on its own a moment after you let go.
-import { Children, useEffect, useRef, type ReactNode } from 'react';
+import { Children, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Icon } from './Icon';
 
 const SPEED = 28; // px per second: slow enough to read every label
@@ -10,7 +10,22 @@ export function Marquee({ children, label }: { children: ReactNode; label: strin
   const ref = useRef<HTMLDivElement>(null);
   const hold = useRef(false);                        // a finger is on the row
   const idleUntil = useRef(0);                       // resume after manual moves
-  const items = Children.toArray(children);
+  const base = Children.toArray(children);
+  // One loop "set" must be wider than the row itself, or the row hits its end before it can wrap
+  // (a wide laptop showing every shelf at once). Repeat the shelves inside a set until it is.
+  const [reps, setReps] = useState(1);
+  useEffect(() => {
+    const el = ref.current; if (!el || !base.length) return;
+    const fit = () => {
+      const one = el.querySelector('[data-mq-item]') as HTMLElement | null; if (!one) return;
+      const itemW = one.offsetWidth + (parseFloat(getComputedStyle(el).columnGap) || 16);
+      setReps(Math.max(1, Math.ceil((el.clientWidth + itemW * 2) / (base.length * itemW))));
+    };
+    fit();
+    const ro = new ResizeObserver(fit); ro.observe(el);
+    return () => ro.disconnect();
+  }, [base.length]);
+  const items = Array.from({ length: reps }, () => base).flat();
 
   useEffect(() => {
     const el = ref.current; if (!el) return;
@@ -34,7 +49,7 @@ export function Marquee({ children, label }: { children: ReactNode; label: strin
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, []);
+  }, [reps]);
 
   const nudge = () => { idleUntil.current = performance.now() + 1500; };
   const go = (d: number) => {
@@ -50,7 +65,7 @@ export function Marquee({ children, label }: { children: ReactNode; label: strin
         onTouchStart={() => { hold.current = true; }} onTouchEnd={() => { hold.current = false; nudge(); }}
         onTouchCancel={() => { hold.current = false; nudge(); }}>
         {[0, 1, 2].map(copy => items.map((it, i) => (
-          <div key={`${copy}-${i}`} className="mq-item" data-mq-item aria-hidden={copy !== 1 || undefined} inert={copy !== 1 ? true : undefined}>{it}</div>
+          <div key={`${copy}-${i}`} className="mq-item" data-mq-item aria-hidden={copy !== 1 || undefined}>{it}</div>
         )))}
       </div>
       <button type="button" className="mq-btn mq-prev" onClick={() => go(-1)} aria-label="Move left"><Icon name="back" size={16} /></button>
