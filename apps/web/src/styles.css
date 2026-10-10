@@ -1452,3 +1452,12 @@ a.cpill{text-decoration:none}
 .ptile .addbtn{margin-top:auto}
 .addbtn::before{top:3px;height:38%;background:linear-gradient(180deg,rgba(255,255,255,.28),rgba(255,255,255,0))}
 .ptile .why svg{padding:3px}
+
+/* round 13: marquee arrows sit on the sides, centred on the circles; no Pause/Play */
+.mq{display:block;padding:0 22px}
+.mq-btn{position:absolute;z-index:2;top:calc(4px + 48px);transform:translateY(-50%);width:34px;height:34px;
+  background:color-mix(in srgb,var(--surface) 78%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:0 8px 20px -12px rgba(15,27,45,.5)}
+.mq-btn:hover{transform:translateY(-50%) scale(1.06)}
+.mq-prev{left:0}.mq-next{right:0}
+@media (max-width:640px){.mq{padding:0 16px}.mq-btn{top:calc(4px + 38px);width:30px;height:30px}}

@@ -1,7 +1,7 @@
 // A row that drifts right to left on its own, like a shop window, and never gets in the way:
-// it stops while you hover, touch, swipe or focus it, has arrows to move it yourself, and a clear
-// Pause/Play button. It picks up again a few seconds after you let go (unless you pressed Pause).
-import { Children, useEffect, useRef, useState, type ReactNode } from 'react';
+// it stops while you hover, touch, swipe or focus it, has arrows on either side to move it yourself,
+// and picks up again on its own a few seconds after you let go.
+import { Children, useEffect, useRef, type ReactNode } from 'react';
 import { Icon } from './Icon';
 
 const SPEED = 28; // px per second: slow enough to read every label
@@ -9,7 +9,6 @@ const SPEED = 28; // px per second: slow enough to read every label
 export function Marquee({ children, label }: { children: ReactNode; label: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const reduce = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const [paused, setPaused] = useState(reduce);      // the visible Pause/Play state
   const hold = useRef(false);                        // hover / touch / focus
   const idleUntil = useRef(0);                       // resume after manual moves
   const items = Children.toArray(children);
@@ -23,7 +22,7 @@ export function Marquee({ children, label }: { children: ReactNode; label: strin
     const tick = (t: number) => {
       const dt = Math.min(64, t - last); last = t;
       const w = setW();
-      if (!paused && !hold.current && t > idleUntil.current) {
+      if (!reduce && !hold.current && t > idleUntil.current) {
         acc += (SPEED * dt) / 1000;
         if (acc >= 1) { el.scrollLeft += Math.floor(acc); acc -= Math.floor(acc); }
       }
@@ -33,7 +32,7 @@ export function Marquee({ children, label }: { children: ReactNode; label: strin
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [paused]);
+  }, [reduce]);
 
   const nudge = () => { idleUntil.current = performance.now() + 3500; };
   const go = (d: number) => {
@@ -44,7 +43,7 @@ export function Marquee({ children, label }: { children: ReactNode; label: strin
   };
 
   return (
-    <div className="mq" data-paused={paused || undefined}>
+    <div className="mq">
       <div ref={ref} className="mq-track" role="region" aria-label={label}
         onPointerEnter={e => { if (e.pointerType === 'mouse') hold.current = true; }}
         onPointerLeave={e => { if (e.pointerType === 'mouse') { hold.current = false; nudge(); } }}
@@ -54,13 +53,8 @@ export function Marquee({ children, label }: { children: ReactNode; label: strin
           <div key={`${copy}-${i}`} className="mq-item" data-mq-item aria-hidden={copy !== 1 || undefined} inert={copy !== 1 ? true : undefined}>{it}</div>
         )))}
       </div>
-      <div className="mq-ctrl">
-        <button type="button" className="mq-btn" onClick={() => go(-1)} aria-label="Move left"><Icon name="back" size={16} /></button>
-        <button type="button" className="mq-play" onClick={() => setPaused(p => !p)} aria-pressed={paused}>
-          {paused ? <><Icon name="play" size={14} />Play</> : <><Icon name="pause" size={14} />Pause</>}
-        </button>
-        <button type="button" className="mq-btn" onClick={() => go(1)} aria-label="Move right"><Icon name="fwd" size={16} /></button>
-      </div>
+      <button type="button" className="mq-btn mq-prev" onClick={() => go(-1)} aria-label="Move left"><Icon name="back" size={16} /></button>
+      <button type="button" className="mq-btn mq-next" onClick={() => go(1)} aria-label="Move right"><Icon name="fwd" size={16} /></button>
     </div>
   );
 }
