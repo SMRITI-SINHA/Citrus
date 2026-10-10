@@ -7,7 +7,7 @@ import { ContactButtons } from './Contact';
 import { Icon, type IconName } from './Icon';
 
 export function StatusBadge({ status, label }: { status: OrderStatus; label?: string }) {
-  return <span className={`status ${statusTone(status)}`}>{label ?? retailerLabel(status)}</span>;
+  return <span className={`status ${statusTone(status)} st-${status}`}>{label ?? retailerLabel(status)}</span>;
 }
 
 export function Note({ tone = 'info', icon, title, children, role }: { tone?: 'info' | 'warn' | 'bad' | 'ok'; icon?: IconName; title?: ReactNode; children?: ReactNode; role?: 'alert' | 'status' }) {

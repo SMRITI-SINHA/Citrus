@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useSearchParams } from 'react-router';
 import type { StyleCard } from '@citrus/shared';
-import { DISCOUNT_STEPS, PRICE_BANDS } from '@citrus/shared';
+import { DISCOUNT_STEPS, PRICE_BANDS, SHELVES, shelfOf } from '@citrus/shared';
 import { api } from '../../lib/api';
 import { getCached, setCached, useQuery } from '../../lib/query';
 import type { CataloguePage, Facet } from '../../lib/types';
@@ -40,7 +40,8 @@ export default function Catalogue() {
   const view = sp.get('view') === 'soon' ? 'soon' : 'now';
   const { data: soon, error: soonErr } = useQuery<Upcoming[]>(view === 'soon' ? '/api/catalogue/upcoming' : null, { staleMs: 600_000 });
   const q = sp.get('q') ?? '';
-  const cat = sp.get('cat') ?? (q ? '' : 'Shirts');
+  const shelf = q ? undefined : shelfOf(sp.get('shelf'));
+  const cat = shelf?.category ?? sp.get('cat') ?? (q ? '' : 'Shirts');
   const sort = sp.get('sort') ?? 'best';
   const [text, setText] = useState(q);
   const [sheet, setSheet] = useState<'filters' | 'sort' | null>(null);
@@ -51,7 +52,7 @@ export default function Catalogue() {
   // Debounce typing into the URL (and the request).
   useEffect(() => {
     if (text === q) return;
-    const id = setTimeout(() => update({ q: text || null, cat: text ? null : cat || 'Shirts' }), 250);
+    const id = setTimeout(() => update({ q: text || null, shelf: text ? null : sp.get('shelf'), cat: text ? null : cat || 'Shirts' }), 250);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text]);
@@ -66,12 +67,12 @@ export default function Catalogue() {
 
   const apiQs = useMemo(() => {
     const n = new URLSearchParams();
-    if (q) n.set('q', normaliseQuery(q)); else if (cat) n.set('category', cat);
+    if (q) n.set('q', normaliseQuery(q)); else if (shelf) n.set('shelf', shelf.key); else if (cat) n.set('category', cat);
     for (const k of FILTER_KEYS) if (sp.get(k)) n.set(k, sp.get(k)!);
     for (const k of FLAG_KEYS) if (sp.get(k)) n.set(k, sp.get(k)!);
     n.set('sort', sort);
     return n.toString();
-  }, [q, cat, sort, sp]);
+  }, [q, cat, shelf, sort, sp]);
   const key = `/api/catalogue?${apiQs}`;
   const { data, error, refresh } = useQuery<CataloguePage>(view === 'now' ? key : null, { staleMs: 60_000 });
   // Keep showing the previous results while the next set loads (no flash of skeletons).
@@ -100,9 +101,10 @@ export default function Catalogue() {
     return () => io.disconnect();
   });
 
-  const nf = FILTER_KEYS.reduce((a, k) => a + list(k).length, 0) + FLAG_KEYS.filter(k => sp.get(k)).length;
-  const clearAll = () => update(Object.fromEntries([...FILTER_KEYS, ...FLAG_KEYS].map(k => [k, null])));
+  const nf = Number(!!shelf) + FILTER_KEYS.reduce((a, k) => a + list(k).length, 0) + FLAG_KEYS.filter(k => sp.get(k)).length;
+  const clearAll = () => update(Object.fromEntries([...FILTER_KEYS, ...FLAG_KEYS, 'shelf'].map(k => [k, null])));
   const applied: { label: string; off: () => void }[] = [
+    ...(shelf ? [{ label: shelf.label, off: () => update({ shelf: null }) }] : []),
     ...FILTER_KEYS.flatMap(k => list(k).map(v => ({ label: k === 'price' ? PRICE_BANDS.find(b => b.key === v)?.label ?? v : k === 'size' ? `Size ${v}` : v, off: () => toggle(k, v) }))),
     ...(sp.get('offer') ? [{ label: 'On offer', off: () => update({ offer: null }) }] : []),
     ...(sp.get('discount') ? [{ label: `${sp.get('discount')}% off or more`, off: () => update({ discount: null }) }] : []),
@@ -132,8 +134,10 @@ export default function Catalogue() {
               </label>
               <VoiceButton onResult={v => setText(v)} />
             </div>
-            <div className="chips">
-              {CATS.map(c => <button type="button" key={c} className="chip" aria-pressed={!q && cat === c} onClick={() => { setText(''); update({ cat: c, q: null, fit: null, pattern: null, color: null }); }}>{c}</button>)}
+            <div className="chips catchips">
+              {CATS.map(c => <button type="button" key={c} className="chip" aria-pressed={!q && !shelf && cat === c} onClick={() => { setText(''); update({ cat: c, shelf: null, q: null, fit: null, pattern: null, color: null }); }}>{c}</button>)}
+              <span className="chipsep" aria-hidden="true" />
+              {SHELVES.map(x => <button type="button" key={x.key} className="chip" aria-pressed={shelf?.key === x.key} onClick={() => { setText(''); update({ shelf: shelf?.key === x.key ? null : x.key, cat: x.category, q: null, fit: null, pattern: null, color: null, size: null, fabric: null }); }}>{x.label}</button>)}
               <button type="button" className="chip" aria-pressed={!!sp.get('isNew')} onClick={() => update({ isNew: sp.get('isNew') ? null : '1' })}>New</button>
               <button type="button" className="chip" aria-pressed={!!sp.get('offer')} onClick={() => update({ offer: sp.get('offer') ? null : '1' })}><span className="dealdot" />Offers</button>
             </div>
@@ -163,7 +167,7 @@ export default function Catalogue() {
         </aside>
         <div className="stack" aria-busy={stale}>
           <div className="catbar">
-            <div className="muted" style={{ fontSize: 13 }} aria-live="polite"><b style={{ color: 'var(--ink)' }}>{!q && cat ? cat : 'Results'}</b> · {num(total)} style{total === 1 ? '' : 's'}{q ? ` for "${q}"` : ''}</div>
+            <div className="muted" style={{ fontSize: 13 }} aria-live="polite"><b style={{ color: 'var(--ink)' }}>{shelf ? shelf.label : !q && cat ? cat : 'Results'}</b> · {num(total)} style{total === 1 ? '' : 's'}{q ? ` for "${q}"` : ''}</div>
             <label className="sortsel hide-sm"><span className="muted">Sort by:</span>
               <select value={sort} onChange={e => update({ sort: e.target.value === 'best' ? null : e.target.value })}>{SORTS.map(([k, l]) => <option key={k} value={k}>{l}</option>)}</select>
               <Icon name="down" size={14} />
@@ -197,7 +201,7 @@ export default function Catalogue() {
       {view === 'now' && (
         <div className="sfbar" role="group" aria-label="Sort and filter">
           <button type="button" onClick={() => setSheet('sort')}><Icon name="down" size={16} /><span><b>Sort</b><small>{sortLabel}</small></span></button>
-          <button type="button" onClick={() => setSheet('filters')}><Icon name="filter" size={16} /><span><b>Filter{nf ? ` (${nf})` : ''}</b><small>{nf ? 'Applied' : 'Size, price, colour…'}</small></span></button>
+          <button type="button" onClick={() => setSheet('filters')}><Icon name="filter" size={16} /><span><b>Filter{nf ? ` (${nf})` : ''}</b><small>{nf ? 'Applied' : shelf ? shelf.label : 'Category, size, colour…'}</small></span></button>
         </div>
       )}
 
@@ -227,11 +231,20 @@ function FilterBody({ mode, sp, q, cat, facets, hexes, list, toggle, update, set
   mode: 'side' | 'tabs'; sp: URLSearchParams; q: string; cat: string; facets: Facets; hexes: Record<string, string>;
   list: (k: string) => string[]; toggle: (k: string, v: string) => void; update: (p: Record<string, string | null>) => void; setText: (v: string) => void;
 }) {
-  const [tab, setTab] = useState<SectionKey>('size');
-  const count = (k: SectionKey) => k === 'cat' ? 0 : k === 'offers' ? Number(!!sp.get('offer')) + Number(!!sp.get('discount')) : k === 'avail' ? Number(!!sp.get('inStock')) + Number(!!sp.get('isNew')) : list(k).length;
+  const [tab, setTab] = useState<SectionKey>('cat');
+  const count = (k: SectionKey) => k === 'cat' ? Number(!!sp.get('shelf')) : k === 'offers' ? Number(!!sp.get('offer')) + Number(!!sp.get('discount')) : k === 'avail' ? Number(!!sp.get('inStock')) + Number(!!sp.get('isNew')) : list(k).length;
   const body = (k: SectionKey) => {
     switch (k) {
-      case 'cat': return <div className="fopts">{CATS.map(c => <Opt key={c} radio on={!q && cat === c} onClick={() => { setText(''); update({ cat: c, q: null, fit: null, pattern: null, color: null, size: null, fabric: null }); }}>{c}</Opt>)}</div>;
+      case 'cat': {
+        const sh = q ? undefined : shelfOf(sp.get('shelf'));
+        const go = (c: string, key: string | null) => { setText(''); update({ cat: c, shelf: key, q: null, fit: null, pattern: null, color: null, size: null, fabric: null }); };
+        return <div className="fopts">{CATS.map(c => (
+          <div key={c} className="fgroup">
+            <Opt radio on={!q && !sh && cat === c} onClick={() => go(c, null)}>All {c.toLowerCase()}</Opt>
+            {SHELVES.filter(x => x.category === c).map(x => <Opt key={x.key} radio on={sh?.key === x.key} onClick={() => go(c, x.key)}><span className="fsub">{x.label}</span></Opt>)}
+          </div>
+        ))}</div>;
+      }
       case 'size': return <div className="fsizes">{(facets?.size ?? []).map(f => <button type="button" key={f.value} className="fsize" aria-pressed={list('size').includes(f.value)} onClick={() => toggle('size', f.value)}><b>{f.value}</b><small>{num(f.n)}</small></button>)}{!facets?.size?.length && <span className="muted xs">Pick a category to see sizes.</span>}</div>;
       case 'price': return <div className="fopts">{PRICE_BANDS.map(b => { const n = facets?.price?.find(f => f.value === b.key)?.n ?? 0; return <Opt key={b.key} on={list('price').includes(b.key)} n={n} disabled={!n && !list('price').includes(b.key)} onClick={() => toggle('price', b.key)}>{b.label}</Opt>; })}</div>;
       case 'color': return <Many k="color" facets={facets?.color} sel={list('color')} toggle={toggle} hexes={hexes} />;
@@ -246,8 +259,8 @@ function FilterBody({ mode, sp, q, cat, facets, hexes, list, toggle, update, set
       case 'fabric': return <Many k="fabric" facets={facets?.fabric} sel={list('fabric')} toggle={toggle} />;
       case 'avail': return (
         <div className="fopts">
-          <Opt on={!!sp.get('inStock')} onClick={() => update({ inStock: sp.get('inStock') ? null : '1' })}>Only styles in stock</Opt>
-          <Opt on={!!sp.get('isNew')} onClick={() => update({ isNew: sp.get('isNew') ? null : '1' })}>New styles</Opt>
+          <Opt on={!!sp.get('inStock')} onClick={() => update({ inStock: sp.get('inStock') ? null : '1' })}>Ready stock only (NOS in stock now)</Opt>
+          <Opt on={!!sp.get('isNew')} onClick={() => update({ isNew: sp.get('isNew') ? null : '1' })}>New arrivals</Opt>
         </div>
       );
     }

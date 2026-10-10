@@ -34,7 +34,7 @@ export function ProductTile({ style, color, why }: { style: StyleCard; color?: s
       <div className="sizestrip" aria-label="Stock per size">
         {zs.map(z => { const n = avail(style, c, z); return <span key={z} className={`sz${n === 0 ? ' out' : n <= LOW ? ' low' : ''}`}>{z}·{num(n)}</span>; })}
       </div>
-      {why && <div className="why"><span>{why}</span></div>}
+      {why && <div className="why"><Icon name="spark" size={14} /><span>{why}</span></div>}
       <button type="button" className="addbtn" onClick={() => quickAdd.open({ styleId: style.id, color: c, mode: 'add' })} aria-label={`Add ${style.name}, ${c}`}><Icon name="cart" size={16} />Add to cart</button>
     </div>
   );

@@ -7,6 +7,7 @@ import { session, useMe } from '../../state/session';
 import { seedStyles } from '../../state/catalogue';
 import { Icon } from '../../components/Icon';
 import { ProductTile } from '../../components/ProductTile';
+import { PLink } from '../../components/PLink';
 import { SecHead, TileSkeletons } from '../../components/Bits';
 import { Rail } from '../../components/Rail';
 import { useTheme } from '../../components/Shell';
@@ -39,7 +40,7 @@ export default function Rewards() {
       </section>
       <div className="note info"><Icon name="spark" size={18} /><div className="grow"><b>How points work</b>Every piece earns points; new and priority styles earn more. You see the points on every product before you order. Rewards and point values are set by CITRUS each month.</div></div>
       <section>
-        <SecHead title="Earn faster" sub="Styles with the most points per piece, in stock now" />
+        <SecHead title="Earn faster" sub="Styles with the most points per piece, in stock now" action={<PLink to="/catalogue?sort=points&inStock=1" className="linkbtn">See all</PLink>} />
         <div style={{ marginTop: 12 }}>{data ? <Rail label="Earn faster">{data.items.map(s => <ProductTile key={s.id} style={s} />)}</Rail> : <TileSkeletons n={4} scroll />}</div>
       </section>
 

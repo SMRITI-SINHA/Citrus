@@ -3,7 +3,7 @@
 // Run: npm run mock -w apps/web   (port 4300), then VITE_MOCK=1 npm run dev -w apps/web
 // The same handler also runs inside the browser for the hosted demo (src/demo/inbrowser.ts), so it uses no Node-only modules.
 import type { Cart, CartLine, Category, Me, Order, OrderLine, OrderStatus, StyleCard, Look } from '@citrus/shared';
-import { ASSUMPTIONS, DEFAULT_RATIO, DISCOUNT_STEPS, offerFor, PRICE_BANDS, REWARD_TIERS, SIZES } from '@citrus/shared';
+import { ASSUMPTIONS, DEFAULT_RATIO, DISCOUNT_STEPS, offerFor, PRICE_BANDS, REWARD_TIERS, SHELVES, shelfOf, SIZES } from '@citrus/shared';
 import { partnersFor, type LookCtx, type LookStyle } from '@citrus/shared/src/looks.ts';
 import { COLORS, DISTRIBUTORS, PAST_ORDERS, RECOMMENDATIONS, RETAILERS, STYLES, seedStock } from '@citrus/shared/src/seed.ts';
 
@@ -175,11 +175,22 @@ export async function handle(req: MockReq, res: MockRes) {
         looks: [],
         points: me.points ?? 0, nextReward: REWARD_TIERS.find(t => t.at > (me.points ?? 0)) });
     }
+    if (p === '/api/shelves') {
+      // One tile per shelf on Home: how many styles are in stock there, and the best-stocked one for the photo.
+      const tot = (id: string) => { const s = byId.get(id)!; return s.colors.reduce((a, c) => a + SIZES[s.category].reduce((x, z) => x + (stock[`${id}|${c}|${z}`] ?? 0), 0), 0); };
+      return send(res, 200, SHELVES.map(sh => {
+        const inStock = STYLES.filter(s => sh.test(s) && tot(s.id) > 0).sort((a, b) => tot(b.id) - tot(a.id));
+        const top = inStock[0];
+        return { key: sh.key, label: sh.label, n: inStock.length, cover: top ? card(top.id) : undefined };
+      }));
+    }
     if (p === '/api/catalogue') {
       const q = (url.searchParams.get('q') ?? '').toLowerCase().split(/\s+/).filter(Boolean);
-      const cat = url.searchParams.get('category');
+      const shelf = shelfOf(url.searchParams.get('shelf'));
+      const cat = shelf ? shelf.category : url.searchParams.get('category');
       const csv = (k: string) => (url.searchParams.get(k) ?? '').split(',').filter(Boolean);
       let list = STYLES.filter(s => (q.length ? q.every(t => `${s.id} ${s.name} ${s.category} ${s.fit} ${s.pattern} ${s.fabric} ${s.kind} ${s.colors.join(' ')}`.toLowerCase().includes(t.replace('trouser', 'trouser'))) : !cat || s.category === cat));
+      if (shelf && !q.length) list = list.filter(s => shelf.test(s));
       if (url.searchParams.get('isNew')) list = list.filter(s => s.isNew);
       const base = list;
       const fits = csv('fit'), pats = csv('pattern'), cols = csv('color'), fabs = csv('fabric'), bands = csv('price'), sizes = csv('size');

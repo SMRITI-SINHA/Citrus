@@ -13,7 +13,7 @@ import { SecHead } from '../../components/Bits';
 import { ReorderSheet, type ReorderRef } from './ReorderSheet';
 import { useT } from '../../lib/i18n';
 import type { Page } from '../../lib/types';
-import { soShown, useMyOrders } from '../../state/orders';
+import { nextStep, soShown, useMyOrders } from '../../state/orders';
 import { PLink } from '../../components/PLink';
 import { CardSkeletons, ErrorNote, StatusBadge } from '../../components/Bits';
 
@@ -41,8 +41,8 @@ export function OrderCard({ o }: { o: Order }) {
       <div className="top"><b className="mono">{o.number}</b><StatusBadge status={o.status} /></div>
       <span className="muted small">{dstr(o.placedAt)}</span>
       <div className="vrow"><PcsChip n={o.totalQty} /><ValueTxt amt={o.totalValue} /><PtsChip n={o.totalPoints} /></div>
-      {o.status === 'modified' && <b style={{ fontSize: 13 }}>Your answer needed: {o.distributorName} suggested changes</b>}
       {soShown(o) && <span className="muted xs">CITRUS order {soShown(o)}</span>}
+      {(() => { const n = nextStep(o); return <span className={`onext st-${o.status}`}><span>{n.text}</span><b>{n.cta}<Icon name="fwd" size={14} /></b></span>; })()}
     </PLink>
   );
 }
@@ -129,7 +129,7 @@ export default function Orders() {
           )}
           {active.length > 0 && (
             <section className="stack" style={{ gap: 10 }}>
-              <SecHead title="On the way" sub="Not delivered yet" />
+              <SecHead title="On the way" sub="Not delivered yet" action={<button type="button" className="linkbtn" onClick={() => set('tab', null)}>See all</button>} />
               <div className="ogrid">{[...active].sort((a, b) => b.placedAt.localeCompare(a.placedAt)).map(o => <OrderCard key={o.id} o={o} />)}</div>
             </section>
           )}

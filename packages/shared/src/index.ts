@@ -257,3 +257,4 @@ export const ASSUMPTIONS: { id: string; kind: 'business' | 'erp'; title: string;
   { id: 'status', kind: 'erp', title: 'Ginesys status mapping', current: 'SO created → Invoiced → Dispatched (AWB) → Delivered, polled every 10 seconds', owner: 'Jatin' },
   { id: 'credit', kind: 'erp', title: 'Credit and outstanding for distributors', current: 'Read-only lookup per retailer; never blocks an order by itself', owner: 'Jatin' },
 ];
+export { SHELVES, shelfOf, type Shelf, type ShelfStyle } from './shelves';

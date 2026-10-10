@@ -54,6 +54,7 @@ export function lineOf(s: Pick<GarmentSpec, 'kind' | 'name' | 'fabric' | 'patter
   return 'casual';
 }
 export const linePhoto = (l: Line) => BASE + LINES[l].file;
+export const photoUrl = (file: string) => BASE + file;
 
 // ---------- library shot for a style + colour ----------
 function rgb(hex: string) { const n = parseInt(safeHex(hex).slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255]; }

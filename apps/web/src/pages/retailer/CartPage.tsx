@@ -71,6 +71,8 @@ export default function CartPage() {
   const open = conflict?.filter(c => v.qty(c.styleId, c.color, c.size) > c.available) ?? [];
   useEffect(() => { if (conflict && !open.length) { setConflict(null); toast('All fixed. Ready to place'); } }, [conflict, open.length]);
   const flagged = new Set(open.map(c => `${c.styleId}|${c.color}|${c.size}`));
+  const nStyles = new Set(v.lines.map(l => l.styleId)).size;
+  const selLine = `${nStyles} style${nStyles === 1 ? '' : 's'} · ${num(pieces)} pcs selected`;
   const blocked = !!phase || open.length > 0 || !pieces || overN > 0;
 
   async function place() {
@@ -194,6 +196,7 @@ export default function CartPage() {
               <div style={{ marginTop: 8 }}><ContactButtons compact context="I could not place my CITRUS order" /></div>
             </div></div>
           )}
+          <div className="selline num" aria-live="polite"><Icon name="check" size={14} /><span><b>{selLine}</b> and ready to send</span></div>
           <button type="button" className="btn block" onClick={place} disabled={blocked} aria-busy={!!phase}>{placeLabel}</button>
           {phase && <SmartLoader context="placing" overlay delay={250} />}
           {overN > 0 && <span className="bad-ink small" style={{ textAlign: 'center' }}>Fix the red {overN === 1 ? 'size' : 'sizes'} above (more than in stock) to place the order.</span>}
@@ -203,8 +206,8 @@ export default function CartPage() {
       <div className="mc-sp" aria-hidden="true" />
       <div className="minicart cartbar">
         <div className="t" aria-live="polite">
-          <span className="mc-v num">{inr(value)}</span>
-          <span className="mc-c"><span className="mc-pcs num"><Icon name="box" size={12} />{num(pieces)} pcs</span><span className="mc-pts num"><Icon name="gift" size={12} />+{num(points)} pts</span>{saved > 0 && <span className="mc-save num">Saved {inr(saved)}</span>}</span>
+          <span className="mc-sel num"><Icon name="check" size={12} />{selLine}</span>
+          <span className="mc-c"><span className="mc-v num">{inr(value)}</span><span className="mc-pts num"><Icon name="gift" size={12} />+{num(points)} pts</span>{saved > 0 && <span className="mc-save num">Saved {inr(saved)}</span>}</span>
         </div>
         <button type="button" className="btn" onClick={place} disabled={blocked}>{placeLabel}</button>
       </div>

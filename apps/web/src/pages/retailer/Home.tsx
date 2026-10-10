@@ -11,8 +11,10 @@ import { recentViews } from '../../state/ui';
 import { lookPart, pastId } from '../../lib/types';
 import { useMe } from '../../state/session';
 import { seedStyles, spec } from '../../state/catalogue';
-import { isOpen, useMyOrders } from '../../state/orders';
-import { BrandArt, Garment, linePhoto } from '../../components/Garment';
+import { isOpen, nextStep, useMyOrders } from '../../state/orders';
+import type { Order } from '@citrus/shared';
+import { useRef } from 'react';
+import { BrandArt, Garment, linePhoto, photoUrl } from '../../components/Garment';
 import { RewardCards } from '../../components/RewardCards';
 import type { CataloguePage } from '../../lib/types';
 import { Icon } from '../../components/Icon';
@@ -41,7 +43,7 @@ export default function Home() {
 
   const points = me.points ?? data?.points ?? 0;
   const tier = nextTier(points);
-  const active = orders?.filter(o => isOpen(o.status)).sort((a, b) => (a.status === 'modified' ? -1 : b.status === 'modified' ? 1 : b.placedAt.localeCompare(a.placedAt)))[0];
+  const actives = (orders ?? []).filter(o => isOpen(o.status)).sort((a, b) => (a.status === 'modified' ? -1 : b.status === 'modified' ? 1 : b.placedAt.localeCompare(a.placedAt)));
   const firstName = me.name.split(' ')[0];
   const buyAgain = (data?.buyAgain ?? []).filter(p => !p.placedAt || Date.now() - Date.parse(p.placedAt) < POLICY.reorderWindowDays * 864e5);
   const lastOrder = buyAgain[0];
@@ -55,7 +57,7 @@ export default function Home() {
             <h1>Pause. Breathe.<br /><em>Restock.</em></h1>
             <p>Your best-sellers are in stock today. Reorder your usual in one tap, or type exactly what you want in each size.</p>
             <div className="acts">
-              {lastOrder ? <button type="button" className="btn citrus" onClick={() => setReorder(lastOrder)}>{t('reorderLast')}</button>
+              {lastOrder ? <button type="button" className="btn citrus" onClick={() => setReorder(lastOrder)}>Restock from last order</button>
                 : <PLink to="/catalogue" className="btn citrus">{t('browse')}</PLink>}
               {lastOrder && <PLink to="/catalogue" className="btn light">{t('browse')}</PLink>}
             </div>
@@ -64,18 +66,14 @@ export default function Home() {
             <BrandArt />
           </div>
         </section>
-        {active && (
-          <PLink to={`/orders/${active.id}`} className="card ostrip" style={{ color: 'inherit', textDecoration: 'none' }} data={`/api/orders/${active.id}`}>
-            <StatusBadge status={active.status} />
-            <span style={{ flex: 1, minWidth: 0 }}><b className="mono">{active.number}</b> · {num(active.totalQty)} pcs{active.status === 'modified' ? <> · <b>Your answer needed</b></> : ` · with ${active.distributorName}`}</span>
-            <Icon name="fwd" size={16} />
-          </PLink>
-        )}
+        {actives.length > 0 && <ActiveOrders orders={actives} />}
         <div className="searchrow">
           <HomeSearch />
           <VoiceButton onResult={q => nav(`/catalogue?q=${encodeURIComponent(q)}`)} />
         </div>
       </div>
+
+      <Shelves />
 
       {error && !data && <ErrorNote error={error} onRetry={refresh} />}
 
@@ -162,6 +160,74 @@ export default function Home() {
 
       <ReorderSheet card={reorder} onClose={() => setReorder(null)} />
     </>
+  );
+}
+
+// Every open order in one strip. It slides to the next order on its own, pauses while the store owner is
+// reading or touching it, and has arrows and a View all link. The colour of each tag matches the order's stage.
+function ActiveOrders({ orders }: { orders: Order[] }) {
+  const [i, setI] = useState(0);
+  const [hold, setHold] = useState(false);
+  const n = orders.length, cur = Math.min(i, n - 1);
+  const reduce = useRef(typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches).current;
+  useEffect(() => {
+    if (n < 2 || hold || reduce) return;
+    const t = setTimeout(() => setI(x => (x + 1) % n), 2800);
+    return () => clearTimeout(t);
+  }, [cur, n, hold, reduce]);
+  const go = (d: number) => setI(x => (x + d + n) % n);
+  return (
+    <section className="oslider" aria-roledescription="carousel" aria-label="Orders on the way"
+      onPointerEnter={() => setHold(true)} onPointerLeave={() => setHold(false)} onFocus={() => setHold(true)} onBlur={() => setHold(false)} onTouchStart={() => setHold(true)}>
+      <div className="os-head">
+        <b>{n === 1 ? 'Your order on the way' : `${n} orders on the way`}</b>
+        <span className="os-hr">
+          {n > 1 && <span className="os-harr"><button type="button" className="os-arr" onClick={() => go(-1)} aria-label="Previous order"><Icon name="back" size={14} /></button><span className="num muted small">{cur + 1}/{n}</span><button type="button" className="os-arr" onClick={() => go(1)} aria-label="Next order"><Icon name="fwd" size={14} /></button></span>}
+          <PLink to="/orders" className="linkbtn">View all</PLink>
+        </span>
+      </div>
+      <div className="os-row">
+        {n > 1 && <button type="button" className="os-arr os-side" onClick={() => go(-1)} aria-label="Previous order"><Icon name="back" size={16} /></button>}
+        <div className="os-view">
+          <div className="os-track" style={{ transform: `translateX(-${cur * 100}%)` }}>
+            {orders.map((o, k) => {
+              const step = nextStep(o);
+              return (
+                <PLink key={o.id} to={`/orders/${o.id}`} className={`os-card st-${o.status}`} data={`/api/orders/${o.id}`} aria-hidden={k !== cur} tabIndex={k === cur ? 0 : -1} aria-label={`Order ${o.number}, ${step.text}`}>
+                  <StatusBadge status={o.status} />
+                  <span className="os-main"><b className="mono">{o.number}</b><span className="muted"> · {num(o.totalQty)} pcs · {dmy(o.placedAt)}</span><span className="os-step">{step.text}</span></span>
+                  <span className="os-cta">{step.cta}<Icon name="fwd" size={14} /></span>
+                </PLink>
+              );
+            })}
+          </div>
+        </div>
+        {n > 1 && <button type="button" className="os-arr os-side" onClick={() => go(1)} aria-label="Next order"><Icon name="fwd" size={16} /></button>}
+      </div>
+      {n > 1 && <div className="os-dots" role="tablist" aria-label="Choose order">{orders.map((o, k) => <button key={o.id} type="button" role="tab" aria-selected={k === cur} aria-label={`Order ${o.number}`} className={`st-${o.status}${k === cur ? ' on' : ''}`} onClick={() => setI(k)} />)}</div>}
+    </section>
+  );
+}
+
+interface ShelfTile { key: string; label: string; n: number; cover?: import('../../lib/types').CataloguePage['items'][number] }
+// One clear CITRUS photo per shelf, so every circle shows a different garment.
+const SHELF_PHOTO: Record<string, string> = { 'formal-shirts': 'g/ampm-shirt.webp', 'casual-shirts': 'g/casual-shirt.webp', chinos: 'g/cotton-trouser.webp', 'formal-trousers': 'g/formalpant-trouser.webp', polos: 'g/shorts-polo.webp', tees: 'g/cargo-tee.webp' };
+// The shelves a store restocks by. One tap opens that shelf, in-stock styles first.
+function Shelves() {
+  const { data } = useQuery<ShelfTile[]>('/api/shelves', { staleMs: 120_000 });
+  if (!data) return null;
+  return (
+    <section>
+      <SecHead title="Restock a shelf" sub="Pick the shelf that is running low" action={<PLink to="/catalogue" className="linkbtn" preloadVisible>See all</PLink>} />
+      <nav className="shelves" aria-label="Shelves" style={{ marginTop: 12 }}>
+        {data.map(x => (
+          <PLink key={x.key} to={`/catalogue?shelf=${x.key}&sort=avail`} className="shelf">
+            <span className="sc">{SHELF_PHOTO[x.key] ? <span className="ph"><img src={photoUrl(SHELF_PHOTO[x.key])} alt="" loading="lazy" decoding="async" /></span> : x.cover && <Garment swatch={false} spec={spec(x.cover, x.cover.colors[0]?.name ?? '')} />}</span>
+            <b>{x.label}</b><small>{num(x.n)} styles in stock</small>
+          </PLink>
+        ))}
+      </nav>
+    </section>
   );
 }
 

@@ -182,11 +182,12 @@ function MiniCart() {
   const styles = useStyles(v.lines.map(l => l.styleId));
   const value = v.lines.reduce((a, l) => a + l.qty * tradeRate(styles[l.styleId]), 0);
   const points = v.lines.reduce((a, l) => a + l.qty * (styles[l.styleId]?.points ?? 0), 0);
+  const nStyles = new Set(v.lines.map(l => l.styleId)).size;
   return (
     <div className="minicart" role="region" aria-label="Cart">
       <div className="t" aria-live="polite">
-        <span className="mc-v num">{inr(value)}</span>
-        <span className="mc-c"><span className="mc-pcs num"><Icon name="box" size={12} />{num(v.pieces)} pcs</span><span className="mc-pts num"><Icon name="gift" size={12} />+{num(points)} pts</span></span>
+        <span className="mc-sel num"><Icon name="check" size={12} />{nStyles} style{nStyles === 1 ? '' : 's'} · {num(v.pieces)} pcs selected</span>
+        <span className="mc-c"><span className="mc-v num">{inr(value)}</span><span className="mc-pts num"><Icon name="gift" size={12} />+{num(points)} pts</span></span>
       </div>
       <PLink to="/cart" className="btn mc-go">{t('proceedCart')}<Icon name="fwd" size={16} /></PLink>
     </div>

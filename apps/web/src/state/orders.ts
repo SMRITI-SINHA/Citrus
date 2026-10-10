@@ -55,3 +55,17 @@ export function useQueue() {
   const q = useQuery<Order[] | Page<Order>>('/api/distributor/queue', { staleMs: 15_000 });
   return { ...q, data: itemsOf(q.data) };
 }
+
+/** What happens next on an open order, in the retailer's words, and the one action they can take. */
+export function nextStep(o: Order): { text: string; cta: string } {
+  switch (o.status) {
+    case 'placed': case 'review': return { text: `Waiting for ${o.distributorName} to review`, cta: 'View order' };
+    case 'modified': return { text: `${o.distributorName} suggested changes. Your answer is needed`, cta: 'Review changes' };
+    case 'approved': return { text: 'Approved. CITRUS is creating your order', cta: 'View order' };
+    case 'confirmed': return { text: 'Confirmed. Packing starts next', cta: 'View order' };
+    case 'processing': return { text: 'Being packed at the CITRUS warehouse', cta: 'View order' };
+    case 'dispatched': return { text: 'On the way to your store', cta: 'Track dispatch' };
+    case 'delivered': return { text: 'Delivered', cta: 'View order' };
+    default: return { text: o.status === 'rejected' ? 'Not approved' : 'Cancelled', cta: 'View order' };
+  }
+}
