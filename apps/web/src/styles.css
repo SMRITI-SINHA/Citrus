@@ -1621,3 +1621,13 @@ a.cpill{text-decoration:none}
   box-shadow:0 0 0 1px rgba(216,178,94,.35),0 12px 26px -14px rgba(176,132,40,.6)}
 .mq .shelf .sc .ph{inset:3.5px;box-shadow:0 0 0 2px var(--surface)}
 .mq .shelf:hover .sc{box-shadow:0 0 0 1px rgba(216,178,94,.55),0 0 18px rgba(242,193,78,.35),0 16px 30px -14px rgba(176,132,40,.7)}
+/* round 15b: sold out = one diagonal slash, nothing else */
+.best-sz .out,.sz.out{background:var(--surface-2);opacity:.75}
+.best-sz .out b{text-decoration:none}
+.best-sz .out::after{left:10%;right:10%;height:2px;background:color-mix(in srgb,var(--muted) 85%,transparent);transform:rotate(-28deg)}
+.sz.out{position:relative;overflow:hidden;text-decoration:none;box-shadow:none}
+.sz.out::after{content:"";position:absolute;left:6%;right:6%;top:50%;height:1.5px;background:color-mix(in srgb,var(--muted) 85%,transparent);transform:rotate(-20deg)}
+/* round 15c: shelf frame in a rich maroon (wine) gradient, medium weight */
+.mq .shelf .sc{background:linear-gradient(145deg,#C25A78 0%,#8E2443 40%,#6E1530 70%,#B04A68 100%);
+  box-shadow:0 0 0 1px rgba(142,36,67,.25),0 12px 26px -14px rgba(110,21,48,.6)}
+.mq .shelf:hover .sc{box-shadow:0 0 0 1px rgba(142,36,67,.45),0 0 18px rgba(194,90,120,.35),0 16px 30px -14px rgba(110,21,48,.7)}
